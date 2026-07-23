@@ -1,5 +1,5 @@
 // 🔴 REPLACE THIS WITH YOUR ACTUAL API GATEWAY URL
-const API_URL = 'https://757w5cziii.execute-api.us-east-1.amazonaws.com/prod';
+const API_URL = 'https://757w5cziii.execute-api.us-east-1.amazonaws.com/prod/expenses';
 
 // Load expenses when page opens
 window.onload = loadExpenses;

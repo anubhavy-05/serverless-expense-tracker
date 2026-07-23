@@ -7,6 +7,13 @@ from decimal import Decimal
 dynamodb = boto3.resource('dynamodb')
 table = dynamodb.Table(os.environ['TABLE_NAME'])
 
+# CORS headers - required for browser to accept the response
+CORS_HEADERS = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type'
+}
+
 def lambda_handler(event, context):
     print("Received event:", json.dumps(event))
 
@@ -18,6 +25,7 @@ def lambda_handler(event, context):
         except json.JSONDecodeError:
             return {
                 'statusCode': 400,
+                'headers': CORS_HEADERS,
                 'body': json.dumps({'error': 'Invalid JSON format'})
             }
     else:
@@ -28,6 +36,7 @@ def lambda_handler(event, context):
     if 'description' not in body or 'amount' not in body:
         return {
             'statusCode': 400,
+            'headers': CORS_HEADERS,
             'body': json.dumps({'error': 'Missing description or amount'})
         }
 
@@ -37,6 +46,7 @@ def lambda_handler(event, context):
     except:
         return {
             'statusCode': 400,
+            'headers': CORS_HEADERS,
             'body': json.dumps({'error': 'Invalid amount value'})
         }
 
@@ -54,5 +64,6 @@ def lambda_handler(event, context):
 
     return {
         'statusCode': 201,
+        'headers': CORS_HEADERS,
         'body': json.dumps({'id': item['expenseId']})
     }

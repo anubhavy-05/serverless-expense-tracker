@@ -1,22 +1,153 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>💰 Expense Tracker</title>
+    <meta name="description" content="Track your daily expenses with categories, charts, and CSV export." />
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-    <div class="container">
-        <h1>💰 Expense Tracker</h1>
 
-        <!-- Add Expense Form -->
+    <!-- Toast Notification -->
+    <div id="toast" class="toast" aria-live="polite"></div>
+
+    <!-- 9. Delete Confirm Modal -->
+    <div id="deleteModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="deleteModalTitle">
+        <div class="modal-box">
+            <h3 id="deleteModalTitle">🗑 Delete Expense?</h3>
+            <p>This action cannot be undone.</p>
+            <div class="modal-actions">
+                <button id="cancelDeleteBtn" class="btn-secondary">Cancel</button>
+                <button id="confirmDeleteBtn" class="btn-danger">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. Edit Expense Modal -->
+    <div id="editModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
+        <div class="modal-box">
+            <h3 id="editModalTitle">✏️ Edit Expense</h3>
+            <input type="hidden" id="editExpenseId" />
+            <div class="edit-form">
+                <input type="text" id="editDesc" placeholder="Description" required />
+                <input type="number" id="editAmount" placeholder="Amount" step="0.01" required />
+                <select id="editCategory">
+                    <option value="">Select Category</option>
+                    <option value="Food">🍕 Food</option>
+                    <option value="Transport">🚖 Transport</option>
+                    <option value="Shopping">🛒 Shopping</option>
+                    <option value="Rent">🏠 Rent</option>
+                    <option value="Entertainment">🎬 Entertainment</option>
+                    <option value="Bills">💡 Bills</option>
+                    <option value="Health">🏥 Health</option>
+                    <option value="Other">📦 Other</option>
+                </select>
+                <input type="date" id="editDate" />
+            </div>
+            <div class="modal-actions">
+                <button id="cancelEditBtn" class="btn-secondary">Cancel</button>
+                <button id="confirmEditBtn" class="btn-primary">Update Expense</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+
+        <!-- Header row with title + 13. Dark Mode Toggle -->
+        <div class="header-row">
+            <h1>💰 Expense Tracker</h1>
+            <button id="darkToggleBtn" class="dark-toggle-btn" onclick="toggleDarkMode()" title="Toggle Dark Mode" aria-label="Toggle dark mode">
+                🌙
+            </button>
+        </div>
+
+        <!-- 5. Dashboard Summary Cards -->
+        <div class="summary-cards">
+            <div class="summary-card">
+                <span class="summary-label">Total Spent</span>
+                <span class="summary-value" id="totalSpent">₹0.00</span>
+            </div>
+            <div class="summary-card">
+                <span class="summary-label">This Month</span>
+                <span class="summary-value" id="thisMonth">₹0.00</span>
+            </div>
+            <div class="summary-card">
+                <span class="summary-label">Total Items</span>
+                <span class="summary-value" id="totalItems">0 expenses</span>
+            </div>
+        </div>
+
+        <!-- Add / Update Expense Form -->
         <div id="form">
             <input type="text" id="desc" placeholder="Description" required />
             <input type="number" id="amount" placeholder="Amount" step="0.01" required />
-            <input type="text" id="category" placeholder="Category" />
-           <input type="date" id="date" />
-            <button onclick="addExpense()">➕ Add Expense</button>
+            <select id="category">
+                <option value="">Select Category</option>
+                <option value="Food">🍕 Food</option>
+                <option value="Transport">🚖 Transport</option>
+                <option value="Shopping">🛒 Shopping</option>
+                <option value="Rent">🏠 Rent</option>
+                <option value="Entertainment">🎬 Entertainment</option>
+                <option value="Bills">💡 Bills</option>
+                <option value="Health">🏥 Health</option>
+                <option value="Other">📦 Other</option>
+            </select>
+            <input type="date" id="date" />
+            <button id="submitBtn" onclick="submitExpense()">➕ Add Expense</button>
+        </div>
+
+        <!-- 11. Filter & Search + 12. Sort + 15. CSV Export -->
+        <div class="filter-bar">
+            <input type="text" id="searchInput" placeholder="🔍 Search by description…" oninput="applyFilters()" />
+            <select id="filterCategory" onchange="applyFilters()">
+                <option value="">All Categories</option>
+                <option value="Food">🍕 Food</option>
+                <option value="Transport">🚖 Transport</option>
+                <option value="Shopping">🛒 Shopping</option>
+                <option value="Rent">🏠 Rent</option>
+                <option value="Entertainment">🎬 Entertainment</option>
+                <option value="Bills">💡 Bills</option>
+                <option value="Health">🏥 Health</option>
+                <option value="Other">📦 Other</option>
+            </select>
+            <select id="filterDateRange" onchange="applyFilters()">
+                <option value="all">All Time</option>
+                <option value="this_month">This Month</option>
+                <option value="last_month">Last Month</option>
+            </select>
+            <select id="sortBy" onchange="applyFilters()">
+                <option value="date_desc">📅 Newest First</option>
+                <option value="date_asc">📅 Oldest First</option>
+                <option value="amount_desc">💰 Highest Amount</option>
+                <option value="amount_asc">💰 Lowest Amount</option>
+            </select>
+            <!-- 15. Export CSV -->
+            <button class="btn-csv" onclick="exportCSV()" title="Download CSV">⬇️ Export CSV</button>
+        </div>
+
+        <!-- 14. Charts Section -->
+        <div class="charts-section">
+            <h2>📊 Spending Overview</h2>
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h3>By Category</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="pieChart" aria-label="Pie chart of spending by category"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>Monthly Trend</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="barChart" aria-label="Bar chart of monthly spending"></canvas>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Expense List -->

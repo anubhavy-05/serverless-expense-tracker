@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Expense Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>💰 Expense Tracker</h1>
+        <div id="form">
+            <input id="desc" placeholder="Description">
+            <input id="amount" placeholder="Amount" type="number">
+            <input id="category" placeholder="Category">
+            <input id="date" placeholder="Date (YYYY-MM-DD)" type="date">
+            <button onclick="addExpense()">Add Expense</button>
+        </div>
+        <ul id="expenseList"></ul>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

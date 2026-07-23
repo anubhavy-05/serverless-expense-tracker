@@ -1,0 +1,7 @@
+body { font-family: Arial; background: #f4f4f4; display: flex; justify-content: center; }
+.container { width: 600px; background: white; padding: 20px; border-radius: 10px; margin-top: 50px; }
+input { padding: 8px; margin: 5px; border: 1px solid #ccc; }
+button { background: #28a745; color: white; border: none; padding: 10px; cursor: pointer; }
+ul { list-style: none; padding: 0; }
+li { background: #eee; margin: 5px 0; padding: 10px; display: flex; justify-content: space-between; }
+.delete-btn { background: red; color: white; border: none; padding: 5px; }

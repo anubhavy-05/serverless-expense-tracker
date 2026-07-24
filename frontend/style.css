@@ -90,17 +90,20 @@ ul { list-style: none; }
    ============================================================ */
 .sidebar {
     width: var(--sidebar-w);
-    min-height: 100vh;
+    height: 100vh;
     background: var(--bg-sidebar);
     display: flex;
     flex-direction: column;
-    padding: 24px 16px;
+    padding: 20px 16px 16px;
     position: fixed;
     top: 0; left: 0;
     z-index: 100;
     border-right: 1px solid var(--border);
     overflow-y: auto;
+    overflow-x: hidden;
     transition: background var(--transition);
+    /* Ensure nav items are always reachable */
+    scrollbar-width: thin;
 }
 
 /* Brand */
@@ -108,7 +111,7 @@ ul { list-style: none; }
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-bottom: 28px;
+    margin-bottom: 18px;
     padding: 0 8px;
 }
 .brand-icon { font-size: 26px; }
@@ -123,20 +126,20 @@ ul { list-style: none; }
 }
 
 /* User — sidebar always dark, so force light text regardless of theme */
-.sidebar-user { padding: 0 8px; margin-bottom: 20px; }
+.sidebar-user { padding: 0 8px; margin-bottom: 14px; }
 .user-welcome { font-size: 12px; color: #8892a4; margin-bottom: 2px; }
-.user-name    { font-size: 18px; font-weight: 700; color: #f0f4ff; }
+.user-name    { font-size: 17px; font-weight: 700; color: #f0f4ff; }
 
 /* Wallet */
 .wallet-section {
     background: linear-gradient(135deg, rgba(124,58,237,0.18), rgba(6,182,212,0.12));
     border: 1px solid rgba(124,58,237,0.25);
     border-radius: var(--radius);
-    padding: 16px;
-    margin-bottom: 20px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
 }
-.wallet-label  { font-size: 11px; color: #8892a4; text-transform:uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
-.wallet-amount { font-size: 26px; font-weight: 800; color: #f0f4ff; letter-spacing: -0.5px; margin-bottom: 6px; }
+.wallet-label  { font-size: 11px; color: #8892a4; text-transform:uppercase; letter-spacing: 0.8px; margin-bottom: 3px; }
+.wallet-amount { font-size: 22px; font-weight: 800; color: #f0f4ff; letter-spacing: -0.5px; margin-bottom: 5px; }
 .wallet-change {
     display: flex;
     align-items: center;
@@ -157,17 +160,17 @@ ul { list-style: none; }
 .cards-area {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    margin-bottom: 20px;
+    gap: 8px;
+    margin-bottom: 14px;
 }
 
 .virtual-card {
     border-radius: 12px;
-    padding: 14px 16px;
+    padding: 11px 14px;
     position: relative;
     overflow: hidden;
     color: #fff;
-    min-height: 90px;
+    min-height: 78px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -216,15 +219,15 @@ ul { list-style: none; }
 .quick-actions {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-bottom: 24px;
+    gap: 6px;
+    margin-bottom: 16px;
 }
 
 .qa-btn {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 11px 14px;
+    padding: 9px 14px;
     border-radius: var(--radius-sm);
     font-size: 13px;
     font-weight: 600;
@@ -250,9 +253,10 @@ ul { list-style: none; }
     display: flex;
     flex-direction: column;
     gap: 4px;
-    flex: 1;
+    /* NOT flex:1 — let it sit naturally so it's always visible */
     padding-top: 8px;
     border-top: 1px solid var(--border);
+    margin-bottom: 8px;
 }
 
 .nav-link {
@@ -278,7 +282,7 @@ ul { list-style: none; }
 .nav-icon { font-size: 16px; }
 
 /* Sidebar Footer */
-.sidebar-footer { margin-top: 20px; }
+.sidebar-footer { margin-top: 8px; }
 
 /* ── Dark Mode Toggle — styled like old UI pill button ── */
 .dark-toggle {
@@ -425,7 +429,7 @@ ul { list-style: none; }
 /* ── Stats Row ── */
 .stats-row {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 16px;
     margin-bottom: 24px;
 }
@@ -975,7 +979,6 @@ ul { list-style: none; }
 
 /* ── Tablet (≤1200px) ── */
 @media (max-width: 1200px) {
-    .stats-row { grid-template-columns: repeat(2, 1fr); }
     .charts-row { grid-template-columns: 1fr; }
     .main-content { padding: 24px; }
 }
@@ -985,7 +988,6 @@ ul { list-style: none; }
     :root { --sidebar-w: 230px; }
     .main-content { padding: 20px; }
     .analytics-grid { grid-template-columns: 1fr; }
-    .stats-row { grid-template-columns: repeat(2, 1fr); }
 }
 
 /* ── Mobile (≤768px) — Sidebar becomes a drawer ── */

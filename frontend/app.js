@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════
-// API CONFIG — replace with your actual API Gateway URL
+// API CONFIG
 // ════════════════════════════════════════════════════════════
 const API_URL = 'https://757w5cziii.execute-api.us-east-1.amazonaws.com/prod/expenses';
 
@@ -13,29 +13,49 @@ let pieChart2      = null;
 let barChart2      = null;
 let activeSection  = 'dashboard';
 
-// Category → emoji + CSS class mapping
+// Category → Lucide icon name + color token
+// (color kept in sync with --cat-* tokens in style.css)
 const CAT_META = {
-    Food:          { icon: '🍕', cls: 'cat-food',          badgeCls: 'badge-food',          color: '#ff6b6b' },
-    Transport:     { icon: '🚖', cls: 'cat-transport',     badgeCls: 'badge-transport',     color: '#4ecdc4' },
-    Shopping:      { icon: '🛒', cls: 'cat-shopping',      badgeCls: 'badge-shopping',      color: '#f7b731' },
-    Rent:          { icon: '🏠', cls: 'cat-rent',          badgeCls: 'badge-rent',          color: '#45b7d1' },
-    Entertainment: { icon: '🎬', cls: 'cat-entertainment', badgeCls: 'badge-entertainment', color: '#a29bfe' },
-    Bills:         { icon: '💡', cls: 'cat-bills',         badgeCls: 'badge-bills',         color: '#fd9644' },
-    Health:        { icon: '🏥', cls: 'cat-health',        badgeCls: 'badge-health',        color: '#26de81' },
-    Other:         { icon: '📦', cls: 'cat-other',         badgeCls: 'badge-other',         color: '#778ca3' },
-    General:       { icon: '💼', cls: 'cat-general',       badgeCls: '',                    color: '#6c757d' },
+    Food:          { icon: 'utensils',    color: '#f87171' },
+    Transport:     { icon: 'car',         color: '#22d3ee' },
+    Shopping:      { icon: 'shopping-bag',color: '#eab308' },
+    Rent:          { icon: 'home',        color: '#38bdf8' },
+    Entertainment: { icon: 'film',        color: '#a78bfa' },
+    Bills:         { icon: 'zap',         color: '#fb923c' },
+    Health:        { icon: 'heart-pulse', color: '#34d399' },
+    Other:         { icon: 'package',     color: '#94a3b8' },
+    General:       { icon: 'circle',      color: '#64748b' },
 };
 
 function getCatMeta(cat) { return CAT_META[cat] || CAT_META['General']; }
 
+// Refresh all Lucide icons (call after any innerHTML injection)
+function refreshIcons() {
+    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+        window.lucide.createIcons();
+    }
+}
+
+// Format currency once, reuse
+const fmtCurrency = v =>
+    `₹${Number(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 // ════════════════════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════════════════════
-window.onload = () => {
+window.addEventListener('DOMContentLoaded', () => {
+    refreshIcons();
     loadDarkModePreference();
     setupModals();
     loadExpenses();
-};
+
+    // Close sidebar on nav link click (mobile)
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.addEventListener('click', () => {
+            if (window.innerWidth <= 768) closeSidebar();
+        });
+    });
+});
 
 // ══ MOBILE SIDEBAR DRAWER ══════════════════════════════════
 function toggleSidebar() {
@@ -43,8 +63,9 @@ function toggleSidebar() {
     const overlay  = document.getElementById('sidebarOverlay');
     const isOpen   = sidebar.classList.toggle('open');
     overlay.classList.toggle('active', isOpen);
-    document.getElementById('hamburgerBtn').textContent = isOpen ? '✕' : '☰';
-    // Prevent body scroll when sidebar open on mobile
+    const btn = document.getElementById('hamburgerBtn');
+    btn.innerHTML = `<i data-lucide="${isOpen ? 'x' : 'menu'}"></i>`;
+    refreshIcons();
     document.body.style.overflow = isOpen ? 'hidden' : '';
 }
 
@@ -54,58 +75,50 @@ function closeSidebar() {
     sidebar.classList.remove('open');
     overlay.classList.remove('active');
     const btn = document.getElementById('hamburgerBtn');
-    if (btn) btn.textContent = '☰';
+    if (btn) { btn.innerHTML = `<i data-lucide="menu"></i>`; refreshIcons(); }
     document.body.style.overflow = '';
 }
 
-// ══ Close sidebar on nav link click (mobile) ══
-document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.nav-link').forEach(link => {
-        link.addEventListener('click', () => {
-            if (window.innerWidth <= 768) closeSidebar();
-        });
-    });
-});
+// ══ THEME ══════════════════════════════════════════════════
+function applyThemeUI(theme) {
+    // Sidebar toggle: shows the OPPOSITE of the current theme
+    const nextIsDark = theme === 'light'; // clicking will go to dark
+    const iconName   = nextIsDark ? 'moon' : 'sun';
+    const label      = nextIsDark ? 'Dark mode' : 'Light mode';
 
-function toggleDarkMode() {
-    const html   = document.documentElement;
-    const isDark = html.getAttribute('data-theme') === 'dark';
-    html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+    const themeIcon  = document.getElementById('themeIcon');
+    const themeLabel = document.getElementById('themeLabel');
+    if (themeIcon)  themeIcon.outerHTML = `<i id="themeIcon" data-lucide="${iconName}"></i>`;
+    if (themeLabel) themeLabel.textContent = label;
 
-    // Sidebar toggle labels
-    document.getElementById('themeIcon').textContent  = isDark ? '🌙' : '☀️';
-    document.getElementById('themeLabel').textContent = isDark ? 'Dark Mode' : 'Light Mode';
-
-    // Mobile topbar toggle (synced)
     const mIcon  = document.getElementById('mobileThemeIcon');
     const mLabel = document.getElementById('mobileThemeLabel');
-    if (mIcon)  mIcon.textContent  = isDark ? '🌙' : '☀️';
-    if (mLabel) mLabel.textContent = isDark ? 'Dark' : 'Light';
+    if (mIcon)  mIcon.outerHTML  = `<i id="mobileThemeIcon" data-lucide="${iconName}"></i>`;
+    if (mLabel) mLabel.textContent = nextIsDark ? 'Dark' : 'Light';
 
-    localStorage.setItem('theme', isDark ? 'light' : 'dark');
+    refreshIcons();
+}
+
+function toggleDarkMode() {
+    const html    = document.documentElement;
+    const isDark  = html.getAttribute('data-theme') === 'dark';
+    const next    = isDark ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+    applyThemeUI(next);
     if (allExpenses.length) renderCharts(allExpenses);
 }
 
 function loadDarkModePreference() {
     const saved = localStorage.getItem('theme') || 'dark';
     document.documentElement.setAttribute('data-theme', saved);
-
-    // Sidebar
-    document.getElementById('themeIcon').textContent  = saved === 'dark' ? '☀️' : '🌙';
-    document.getElementById('themeLabel').textContent = saved === 'dark' ? 'Light Mode' : 'Dark Mode';
-
-    // Mobile
-    const mIcon  = document.getElementById('mobileThemeIcon');
-    const mLabel = document.getElementById('mobileThemeLabel');
-    if (mIcon)  mIcon.textContent  = saved === 'dark' ? '☀️' : '🌙';
-    if (mLabel) mLabel.textContent = saved === 'dark' ? 'Light' : 'Dark';
+    applyThemeUI(saved);
 }
 
 // ════════════════════════════════════════════════════════════
 // SECTION NAVIGATION
 // ════════════════════════════════════════════════════════════
 function showSection(name, linkEl) {
-    // hide all sections
     document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
 
@@ -113,8 +126,7 @@ function showSection(name, linkEl) {
     linkEl.classList.add('active');
     activeSection = name;
 
-    // populate history list on switch
-    if (name === 'history') renderHistoryList(allExpenses);
+    if (name === 'history')   renderHistoryList(allExpenses);
     if (name === 'analytics') renderAnalyticsCharts(allExpenses);
     return false;
 }
@@ -194,30 +206,30 @@ function updateSummary(expenses) {
         .reduce((s, e) => s + parseFloat(e.amount || 0), 0);
     const avg = expenses.length ? total / expenses.length : 0;
 
-    const fmt = v => `₹${v.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+    document.getElementById('totalSpent').textContent = fmtCurrency(total);
+    document.getElementById('thisMonth').textContent  = fmtCurrency(monthTotal);
+    document.getElementById('totalItems').textContent = expenses.length;
+    document.getElementById('avgAmount').textContent  = fmtCurrency(avg);
 
-    document.getElementById('totalSpent').textContent  = fmt(total);
-    document.getElementById('thisMonth').textContent   = fmt(monthTotal);
-    document.getElementById('totalItems').textContent  = expenses.length;
-    document.getElementById('avgAmount').textContent   = fmt(avg);
-
-    // Sidebar wallet balance = total spent
-    document.getElementById('sidebarBalance').textContent = fmt(total);
+    document.getElementById('sidebarBalance').textContent = fmtCurrency(total);
     const wc = document.getElementById('walletChange');
     wc.className = 'wallet-change ' + (monthTotal > 0 ? 'positive' : 'neutral');
-    wc.innerHTML = `<span class="change-dot"></span> ₹${monthTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })} this month`;
+    wc.innerHTML = `<span class="change-dot"></span> ${fmtCurrency(monthTotal)} this month`;
 }
 
 // ════════════════════════════════════════════════════════════
 // CHARTS
 // ════════════════════════════════════════════════════════════
-function chartTextColor() {
-    return document.documentElement.getAttribute('data-theme') === 'dark' ? '#a8b3cc' : '#475569';
+function cssVar(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
+function chartTextColor() { return cssVar('--text-2') || '#94a3b8'; }
 function chartGridColor() {
     return document.documentElement.getAttribute('data-theme') === 'dark'
-        ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+        ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.06)';
 }
+function chartBorderColor() { return cssVar('--surface-2'); }
+function chartAccent()      { return cssVar('--accent') || '#6366f1'; }
 
 const CAT_COLORS = Object.fromEntries(Object.entries(CAT_META).map(([k, v]) => [k, v.color]));
 
@@ -250,14 +262,13 @@ function renderCharts(expenses) {
     const monthData = buildMonthData(expenses);
     const tColor    = chartTextColor();
     const gColor    = chartGridColor();
+    const bColor    = chartBorderColor();
 
-    // Find top category for donut center
     const topCat = Object.entries(catData).sort((a,b)=>b[1]-a[1])[0];
     const topPct = topCat && expenses.length
         ? Math.round((topCat[1] / Object.values(catData).reduce((a,b)=>a+b,0)) * 100)
         : 0;
 
-    // ── Pie (dashboard) ──
     if (pieChart1) pieChart1.destroy();
     const pieCtx = document.getElementById('pieChart');
     if (pieCtx) {
@@ -267,9 +278,9 @@ function renderCharts(expenses) {
                 labels: Object.keys(catData),
                 datasets: [{
                     data: Object.values(catData),
-                    backgroundColor: Object.keys(catData).map(k => CAT_COLORS[k] || '#6c757d'),
+                    backgroundColor: Object.keys(catData).map(k => CAT_COLORS[k] || '#64748b'),
                     borderWidth: 3,
-                    borderColor: document.documentElement.getAttribute('data-theme') === 'dark' ? '#111827' : '#fff',
+                    borderColor: bColor,
                 }],
             },
             options: {
@@ -280,16 +291,13 @@ function renderCharts(expenses) {
                         position: 'bottom',
                         labels: { color: tColor, font: { family: 'Inter', size: 11 }, padding: 10, boxWidth: 10 },
                     },
-                    tooltip: {
-                        callbacks: { label: c => ` ₹${c.parsed.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` },
-                    },
+                    tooltip: { callbacks: { label: c => ` ${fmtCurrency(c.parsed)}` } },
                 },
             },
         });
         document.getElementById('donutPct').textContent = `${topPct}%`;
     }
 
-    // ── Bar (dashboard) ──
     if (barChart1) barChart1.destroy();
     const barCtx = document.getElementById('barChart');
     if (barCtx) {
@@ -300,8 +308,8 @@ function renderCharts(expenses) {
                 datasets: [{
                     label: 'Spent (₹)',
                     data: Object.values(monthData),
-                    backgroundColor: 'rgba(124,58,237,0.7)',
-                    borderRadius: 7,
+                    backgroundColor: chartAccent(),
+                    borderRadius: 6,
                     borderSkipped: false,
                 }],
             },
@@ -309,7 +317,7 @@ function renderCharts(expenses) {
                 responsive: true, maintainAspectRatio: false,
                 plugins: {
                     legend: { display: false },
-                    tooltip: { callbacks: { label: c => ` ₹${c.parsed.y.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` } },
+                    tooltip: { callbacks: { label: c => ` ${fmtCurrency(c.parsed.y)}` } },
                 },
                 scales: {
                     x: { ticks: { color: tColor, font: { family: 'Inter', size: 11 } }, grid: { color: gColor } },
@@ -329,6 +337,8 @@ function renderAnalyticsCharts(expenses) {
     const monthData = buildMonthData(expenses);
     const tColor    = chartTextColor();
     const gColor    = chartGridColor();
+    const bColor    = chartBorderColor();
+    const accent    = chartAccent();
     const totalAmt  = Object.values(catData).reduce((a,b)=>a+b,0);
     const topPct2   = totalAmt
         ? Math.round((Math.max(...Object.values(catData)) / totalAmt) * 100)
@@ -343,16 +353,16 @@ function renderAnalyticsCharts(expenses) {
                 labels: Object.keys(catData),
                 datasets: [{
                     data: Object.values(catData),
-                    backgroundColor: Object.keys(catData).map(k => CAT_COLORS[k] || '#6c757d'),
+                    backgroundColor: Object.keys(catData).map(k => CAT_COLORS[k] || '#64748b'),
                     borderWidth: 3,
-                    borderColor: document.documentElement.getAttribute('data-theme') === 'dark' ? '#111827' : '#fff',
+                    borderColor: bColor,
                 }],
             },
             options: {
                 responsive: true, maintainAspectRatio: false, cutout: '68%',
                 plugins: {
                     legend: { position: 'bottom', labels: { color: tColor, font: { family: 'Inter', size: 11 }, padding: 10, boxWidth: 10 } },
-                    tooltip: { callbacks: { label: c => ` ₹${c.parsed.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` } },
+                    tooltip: { callbacks: { label: c => ` ${fmtCurrency(c.parsed)}` } },
                 },
             },
         });
@@ -369,13 +379,13 @@ function renderAnalyticsCharts(expenses) {
                 datasets: [{
                     label: 'Spent (₹)',
                     data: Object.values(monthData),
-                    backgroundColor: Object.keys(monthData).map((_, i) => `hsl(${240 + i*15},70%,60%)`),
-                    borderRadius: 7, borderSkipped: false,
+                    backgroundColor: accent,
+                    borderRadius: 6, borderSkipped: false,
                 }],
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` ₹${c.parsed.y.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` } } },
+                plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` ${fmtCurrency(c.parsed.y)}` } } },
                 scales: {
                     x: { ticks: { color: tColor, font: { family: 'Inter', size: 11 } }, grid: { color: gColor } },
                     y: { ticks: { color: tColor, font: { family: 'Inter', size: 11 }, callback: v => `₹${v.toLocaleString('en-IN')}` }, grid: { color: gColor }, beginAtZero: true },
@@ -384,7 +394,7 @@ function renderAnalyticsCharts(expenses) {
         });
     }
 
-    // Horizontal progress bars per category
+    // Category breakdown bars
     const breakdown = document.getElementById('categoryBreakdown');
     if (breakdown) {
         breakdown.innerHTML = '';
@@ -395,21 +405,23 @@ function renderAnalyticsCharts(expenses) {
             const row  = document.createElement('div');
             row.className = 'cat-row';
             row.innerHTML = `
-                <span class="cat-row-label">${meta.icon} ${cat}</span>
+                <span class="cat-row-label">
+                    <i data-lucide="${meta.icon}" style="color:${meta.color}"></i>
+                    ${cat}
+                </span>
                 <div class="cat-row-bar-track">
                     <div class="cat-row-bar-fill" style="width:${pct.toFixed(1)}%; background:${meta.color};"></div>
                 </div>
-                <span class="cat-row-amount">₹${amt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>`;
+                <span class="cat-row-amount num">${fmtCurrency(amt)}</span>`;
             breakdown.appendChild(row);
         });
+        refreshIcons();
     }
 }
 
-// Chart tab switch (Income / Outcome placeholder)
-function switchChartTab(btn, type) {
+function switchChartTab(btn) {
     document.querySelectorAll('.chart-tab').forEach(t => t.classList.remove('active'));
     btn.classList.add('active');
-    // For now both tabs show same data (no income API); extend later
     renderCharts(allExpenses);
 }
 
@@ -424,7 +436,7 @@ function applyFilters() {
     const now       = new Date();
 
     let list = allExpenses.filter(e => {
-        if (search && !e.description.toLowerCase().includes(search)) return false;
+        if (search && !(e.description || '').toLowerCase().includes(search)) return false;
         if (cat && e.category !== cat) return false;
         if (dateRange !== 'all' && e.date) {
             const d = new Date(e.date);
@@ -450,29 +462,43 @@ function applyFilters() {
 }
 
 // ════════════════════════════════════════════════════════════
-// RENDER LIST (Dashboard)
+// RENDER LIST
 // ════════════════════════════════════════════════════════════
+function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, m => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;',
+    }[m]));
+}
+
 function buildExpenseItemHTML(exp) {
-    const meta     = getCatMeta(exp.category || 'General');
-    const dateStr  = exp.date
+    const meta    = getCatMeta(exp.category || 'General');
+    const dateStr = exp.date
         ? new Date(exp.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
         : '—';
-    const amt      = `₹${parseFloat(exp.amount).toFixed(2)}`;
-    const badgeCls = meta.badgeCls;
+    const amt     = fmtCurrency(exp.amount);
+    const cat     = escapeHtml(exp.category || 'General');
+    const desc    = escapeHtml(exp.description);
+    const id      = escapeHtml(exp.expenseId);
 
     return `
-        <div class="expense-cat-icon ${meta.cls}">${meta.icon}</div>
+        <div class="expense-cat-icon" style="color:${meta.color}">
+            <i data-lucide="${meta.icon}"></i>
+        </div>
         <div class="expense-details">
-            <span class="expense-desc-text">${exp.description}</span>
+            <span class="expense-desc-text">${desc}</span>
             <div class="expense-meta">
-                <span class="expense-cat-badge ${badgeCls}">${exp.category || 'General'}</span>
+                <span class="expense-cat-badge">${cat}</span>
                 <span class="expense-date-text">${dateStr}</span>
             </div>
         </div>
-        <span class="expense-amount-text">${amt}</span>
+        <span class="expense-amount-text num">${amt}</span>
         <div class="expense-item-actions">
-            <button class="icon-btn icon-btn--edit"   onclick="openEditModal('${exp.expenseId}')" title="Edit">✏️</button>
-            <button class="icon-btn icon-btn--delete" onclick="confirmDelete('${exp.expenseId}')" title="Delete">🗑</button>
+            <button class="icon-btn icon-btn--edit"   onclick="openEditModal('${id}')" aria-label="Edit expense">
+                <i data-lucide="pencil"></i>
+            </button>
+            <button class="icon-btn icon-btn--delete" onclick="confirmDelete('${id}')" aria-label="Delete expense">
+                <i data-lucide="trash-2"></i>
+            </button>
         </div>`;
 }
 
@@ -480,24 +506,39 @@ function renderList(expenses) {
     const ul = document.getElementById('expenseList');
     if (!ul) return;
     if (!expenses.length) {
-        ul.innerHTML = `<li><div class="empty-state"><span class="empty-icon">🌸</span><p>No expenses yet!</p><small>Hit "Add Expense" to get started.</small></div></li>`;
+        ul.innerHTML = `<li>
+            <div class="empty-state">
+                <span class="empty-icon"><i data-lucide="inbox"></i></span>
+                <p>No expenses yet</p>
+                <small>Hit "Add expense" to get started.</small>
+            </div>
+        </li>`;
+        refreshIcons();
         return;
     }
     ul.innerHTML = '';
     expenses.forEach((exp, i) => {
         const li = document.createElement('li');
         li.className = 'expense-item';
-        li.style.animationDelay = `${i * 35}ms`;
+        li.style.animationDelay = `${i * 30}ms`;
         li.innerHTML = buildExpenseItemHTML(exp);
         ul.appendChild(li);
     });
+    refreshIcons();
 }
 
 function renderHistoryList(expenses) {
     const ul = document.getElementById('historyList');
     if (!ul) return;
     if (!expenses.length) {
-        ul.innerHTML = `<li><div class="empty-state"><span class="empty-icon">📭</span><p>No history yet!</p><small>Your expenses will appear here.</small></div></li>`;
+        ul.innerHTML = `<li>
+            <div class="empty-state">
+                <span class="empty-icon"><i data-lucide="history"></i></span>
+                <p>No history yet</p>
+                <small>Your expenses will appear here.</small>
+            </div>
+        </li>`;
+        refreshIcons();
         return;
     }
     ul.innerHTML = '';
@@ -505,10 +546,11 @@ function renderHistoryList(expenses) {
     sorted.forEach((exp, i) => {
         const li = document.createElement('li');
         li.className = 'expense-item';
-        li.style.animationDelay = `${i * 35}ms`;
+        li.style.animationDelay = `${i * 30}ms`;
         li.innerHTML = buildExpenseItemHTML(exp);
         ul.appendChild(li);
     });
+    refreshIcons();
 }
 
 // ════════════════════════════════════════════════════════════
@@ -521,7 +563,7 @@ async function submitExpense() {
     const date     = document.getElementById('date').value;
 
     if (!desc || !amount) {
-        showToast('Description and Amount are required.', 'error');
+        showToast('Description and amount are required.', 'error');
         return;
     }
 
@@ -536,7 +578,7 @@ async function submitExpense() {
         ['desc','amount','date'].forEach(id => document.getElementById(id).value = '');
         document.getElementById('category').value = '';
         closeAddPanel();
-        showToast('Expense added! 🎉', 'success');
+        showToast('Expense added.', 'success');
         await loadExpenses();
     } catch {
         showToast('Failed to add expense.', 'error');
@@ -565,7 +607,7 @@ async function updateExpense() {
     const category = document.getElementById('editCategory').value;
     const date     = document.getElementById('editDate').value;
 
-    if (!desc || !amount) { showToast('Description and Amount are required.', 'error'); return; }
+    if (!desc || !amount) { showToast('Description and amount are required.', 'error'); return; }
 
     try {
         const res = await fetch(`${API_URL}/${id}`, {
@@ -576,7 +618,7 @@ async function updateExpense() {
         if (!res.ok) throw new Error();
         closeModal('editModal');
         editingId = null;
-        showToast('Expense updated! ✅', 'success');
+        showToast('Expense updated.', 'success');
         await loadExpenses();
     } catch {
         showToast('Failed to update expense.', 'error');
@@ -592,7 +634,6 @@ function confirmDelete(id) {
 }
 
 async function performDelete(id) {
-    // Animate out
     const items = document.querySelectorAll('.expense-item');
     items.forEach(el => { if (el.innerHTML.includes(id)) el.classList.add('deleting'); });
     await new Promise(r => setTimeout(r, 300));
@@ -613,7 +654,7 @@ async function performDelete(id) {
 function exportCSV() {
     if (!allExpenses.length) { showToast('No expenses to export.', 'info'); return; }
 
-    const headers = ['Description', 'Amount (₹)', 'Category', 'Date'];
+    const headers = ['Description', 'Amount (INR)', 'Category', 'Date'];
     const rows    = allExpenses.map(e => [
         `"${(e.description || '').replace(/"/g,'""')}"`,
         parseFloat(e.amount || 0).toFixed(2),
@@ -631,5 +672,5 @@ function exportCSV() {
     a.download = `expenses_${new Date().toISOString().slice(0,10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    showToast('CSV downloaded! 📄', 'success');
+    showToast('CSV downloaded.', 'success');
 }

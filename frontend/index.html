@@ -3,289 +3,259 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>💳 ExpenseTrack — Your Smart Wallet</title>
-    <meta name="description" content="Premium expense tracker with analytics, charts and smart categorisation." />
+    <title>ExpenseTrack — Smart Expense Tracker</title>
+    <meta name="description" content="Track expenses, visualize spending, and stay on budget with a clean, keyboard-friendly dashboard." />
 
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <!-- Lucide icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
     <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-    <!-- ── Toast ──────────────────────────────────────────────── -->
+    <!-- Toast -->
     <div id="toast" class="toast" aria-live="polite"></div>
 
-    <!-- ── Delete Modal ───────────────────────────────────────── -->
+    <!-- Delete Modal -->
     <div id="deleteModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="deleteMTitle">
         <div class="modal-box">
-            <div class="modal-icon modal-icon--danger">🗑</div>
-            <h3 id="deleteMTitle">Delete Expense?</h3>
+            <div class="modal-icon modal-icon--danger"><i data-lucide="trash-2"></i></div>
+            <h3 id="deleteMTitle">Delete expense?</h3>
             <p>This action cannot be undone.</p>
             <div class="modal-actions">
                 <button id="cancelDeleteBtn" class="btn-ghost">Cancel</button>
-                <button id="confirmDeleteBtn" class="btn-danger">Yes, Delete</button>
+                <button id="confirmDeleteBtn" class="btn-danger">Yes, delete</button>
             </div>
         </div>
     </div>
 
-    <!-- ── Edit Modal ─────────────────────────────────────────── -->
+    <!-- Edit Modal -->
     <div id="editModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="editMTitle">
         <div class="modal-box modal-box--wide">
-            <div class="modal-icon modal-icon--accent">✏️</div>
-            <h3 id="editMTitle">Edit Expense</h3>
+            <div class="modal-icon modal-icon--accent"><i data-lucide="pencil"></i></div>
+            <h3 id="editMTitle">Edit expense</h3>
             <input type="hidden" id="editExpenseId" />
             <div class="edit-form">
                 <div class="field-group">
-                    <label>Description</label>
+                    <label for="editDesc">Description</label>
                     <input type="text" id="editDesc" placeholder="e.g. Grocery shopping" required />
                 </div>
                 <div class="field-group">
-                    <label>Amount (₹)</label>
-                    <input type="number" id="editAmount" placeholder="0.00" step="0.01" required />
+                    <label for="editAmount">Amount (₹)</label>
+                    <input type="number" id="editAmount" class="num" placeholder="0.00" step="0.01" required />
                 </div>
                 <div class="field-group">
-                    <label>Category</label>
+                    <label for="editCategory">Category</label>
                     <select id="editCategory">
-                        <option value="">Select Category</option>
-                        <option value="Food">🍕 Food</option>
-                        <option value="Transport">🚖 Transport</option>
-                        <option value="Shopping">🛒 Shopping</option>
-                        <option value="Rent">🏠 Rent</option>
-                        <option value="Entertainment">🎬 Entertainment</option>
-                        <option value="Bills">💡 Bills</option>
-                        <option value="Health">🏥 Health</option>
-                        <option value="Other">📦 Other</option>
+                        <option value="">Select category</option>
+                        <option value="Food">Food</option>
+                        <option value="Transport">Transport</option>
+                        <option value="Shopping">Shopping</option>
+                        <option value="Rent">Rent</option>
+                        <option value="Entertainment">Entertainment</option>
+                        <option value="Bills">Bills</option>
+                        <option value="Health">Health</option>
+                        <option value="Other">Other</option>
                     </select>
                 </div>
                 <div class="field-group">
-                    <label>Date</label>
+                    <label for="editDate">Date</label>
                     <input type="date" id="editDate" />
                 </div>
             </div>
             <div class="modal-actions">
                 <button id="cancelEditBtn" class="btn-ghost">Cancel</button>
-                <button id="confirmEditBtn" class="btn-primary">Update Expense</button>
+                <button id="confirmEditBtn" class="btn-primary">Update expense</button>
             </div>
         </div>
     </div>
 
-    <!-- ── Add Expense Side Panel ─────────────────────────────── -->
+    <!-- Add Expense Side Panel -->
     <div id="addPanel" class="side-panel" aria-label="Add expense panel">
         <div class="side-panel-inner">
             <div class="side-panel-header">
-                <h3>➕ New Expense</h3>
-                <button class="panel-close-btn" onclick="closeAddPanel()" aria-label="Close panel">✕</button>
+                <h3>New expense</h3>
+                <button class="panel-close-btn" onclick="closeAddPanel()" aria-label="Close panel">
+                    <i data-lucide="x"></i>
+                </button>
             </div>
             <div class="field-group">
-                <label>Description</label>
+                <label for="desc">Description</label>
                 <input type="text" id="desc" placeholder="e.g. Coffee at CCD" required />
             </div>
             <div class="field-group">
-                <label>Amount (₹)</label>
-                <input type="number" id="amount" placeholder="0.00" step="0.01" required />
+                <label for="amount">Amount (₹)</label>
+                <input type="number" id="amount" class="num" placeholder="0.00" step="0.01" required />
             </div>
             <div class="field-group">
-                <label>Category</label>
+                <label for="category">Category</label>
                 <select id="category">
-                    <option value="">Select Category</option>
-                    <option value="Food">🍕 Food</option>
-                    <option value="Transport">🚖 Transport</option>
-                    <option value="Shopping">🛒 Shopping</option>
-                    <option value="Rent">🏠 Rent</option>
-                    <option value="Entertainment">🎬 Entertainment</option>
-                    <option value="Bills">💡 Bills</option>
-                    <option value="Health">🏥 Health</option>
-                    <option value="Other">📦 Other</option>
+                    <option value="">Select category</option>
+                    <option value="Food">Food</option>
+                    <option value="Transport">Transport</option>
+                    <option value="Shopping">Shopping</option>
+                    <option value="Rent">Rent</option>
+                    <option value="Entertainment">Entertainment</option>
+                    <option value="Bills">Bills</option>
+                    <option value="Health">Health</option>
+                    <option value="Other">Other</option>
                 </select>
             </div>
             <div class="field-group">
-                <label>Date</label>
+                <label for="date">Date</label>
                 <input type="date" id="date" />
             </div>
-            <button id="submitBtn" class="btn-primary btn-full" onclick="submitExpense()">Add Expense</button>
+            <button id="submitBtn" class="btn-primary btn-full" onclick="submitExpense()">
+                <i data-lucide="plus"></i> Add expense
+            </button>
         </div>
     </div>
     <div id="panelOverlay" class="panel-overlay" onclick="closeAddPanel()"></div>
 
-    <!-- ══ MOBILE TOP BAR (hidden on desktop) ══ -->
+    <!-- Mobile Top Bar -->
     <div class="mobile-topbar">
-        <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleSidebar()" aria-label="Toggle menu">☰</button>
+        <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleSidebar()" aria-label="Toggle menu">
+            <i data-lucide="menu"></i>
+        </button>
         <div class="mobile-brand">
-            <span class="mobile-brand-icon">💳</span>
+            <span class="brand-icon"><i data-lucide="wallet"></i></span>
             ExpenseTrack
         </div>
-        <button class="mobile-dark-toggle" onclick="toggleDarkMode()">
-            <span id="mobileThemeIcon">☀️</span>
+        <button class="mobile-dark-toggle" onclick="toggleDarkMode()" aria-label="Toggle theme">
+            <i id="mobileThemeIcon" data-lucide="sun"></i>
             <span id="mobileThemeLabel">Light</span>
         </button>
     </div>
 
-    <!-- Sidebar overlay for mobile -->
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 
-    <!-- ════════════════════ APP SHELL ═══════════════════════════ -->
+    <!-- App Shell -->
     <div class="app-shell">
 
-        <!-- ── LEFT SIDEBAR ─────────────────────────────────────── -->
+        <!-- Sidebar -->
         <aside class="sidebar">
-            <!-- Brand -->
             <div class="sidebar-brand">
-                <span class="brand-icon">💳</span>
-                <span class="brand-name">ExpenseTrack</span>
+                <span class="brand-icon"><i data-lucide="wallet"></i></span>
+                <span>ExpenseTrack</span>
             </div>
 
-            <!-- User greeting -->
             <div class="sidebar-user">
-                <p class="user-welcome">Welcome back 👋</p>
-                <p class="user-name">Hi, Anubhav!</p>
+                <p class="user-welcome">Welcome back</p>
+                <p class="user-name">Hi, Anubhav</p>
             </div>
 
-            <!-- Wallet Balance -->
             <div class="wallet-section">
-                <p class="wallet-label">Wallet Balance</p>
-                <h2 class="wallet-amount" id="sidebarBalance">₹0.00</h2>
-                <div class="wallet-change positive" id="walletChange">
+                <p class="wallet-label">Wallet balance</p>
+                <h2 class="wallet-amount num" id="sidebarBalance">₹0.00</h2>
+                <div class="wallet-change neutral" id="walletChange">
                     <span class="change-dot"></span> Loading…
                 </div>
             </div>
 
-            <!-- Virtual Cards carousel -->
-            <div class="cards-area">
-                <div class="virtual-card card-purple">
-                    <div class="card-top">
-                        <span class="card-label">Primary Card</span>
-                        <span class="card-chip">▣</span>
-                    </div>
-                    <div class="card-number">•••• •••• •••• 4521</div>
-                    <div class="card-bottom">
-                        <span class="card-name">ANUBHAV Y.</span>
-                        <div class="card-circles">
-                            <span class="circle c1"></span>
-                            <span class="circle c2"></span>
-                        </div>
-                    </div>
-                </div>
-                <div class="virtual-card card-teal">
-                    <div class="card-top">
-                        <span class="card-label">Savings Card</span>
-                        <span class="card-chip">▣</span>
-                    </div>
-                    <div class="card-number">•••• •••• •••• 8803</div>
-                    <div class="card-bottom">
-                        <span class="card-name">ANUBHAV Y.</span>
-                        <div class="card-circles">
-                            <span class="circle c1"></span>
-                            <span class="circle c2"></span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Quick Actions -->
             <div class="quick-actions">
                 <button class="qa-btn qa-btn--primary" onclick="openAddPanel()">
-                    <span class="qa-icon">➕</span>
-                    <span>Add Expense</span>
+                    <i data-lucide="plus"></i>
+                    <span>Add expense</span>
                 </button>
                 <button class="qa-btn qa-btn--ghost" onclick="exportCSV()">
-                    <span class="qa-icon">⬇️</span>
+                    <i data-lucide="download"></i>
                     <span>Export CSV</span>
                 </button>
             </div>
 
-            <!-- Sidebar Nav -->
             <nav class="sidebar-nav">
                 <a href="#" class="nav-link active" id="navDashboard" onclick="showSection('dashboard', this)">
-                    <span class="nav-icon">📊</span> Dashboard
+                    <i data-lucide="layout-dashboard"></i> Dashboard
                 </a>
                 <a href="#" class="nav-link" id="navAnalytics" onclick="showSection('analytics', this)">
-                    <span class="nav-icon">📈</span> Analytics
+                    <i data-lucide="trending-up"></i> Analytics
                 </a>
                 <a href="#" class="nav-link" id="navHistory" onclick="showSection('history', this)">
-                    <span class="nav-icon">🕓</span> History
+                    <i data-lucide="history"></i> History
                 </a>
             </nav>
 
-            <!-- Dark Mode Toggle -->
             <div class="sidebar-footer">
                 <button class="dark-toggle" id="darkToggleBtn" onclick="toggleDarkMode()" aria-label="Toggle theme">
-                    <span id="themeIcon">☀️</span>
-                    <span id="themeLabel">Light Mode</span>
+                    <i id="themeIcon" data-lucide="sun"></i>
+                    <span id="themeLabel">Light mode</span>
                 </button>
             </div>
         </aside>
 
-        <!-- ── MAIN CONTENT ──────────────────────────────────────── -->
+        <!-- Main -->
         <main class="main-content">
 
-            <!-- ──── DASHBOARD SECTION ──── -->
+            <!-- DASHBOARD -->
             <section id="section-dashboard" class="content-section active">
 
-                <!-- Page Header -->
                 <div class="page-header">
                     <div>
                         <h1 class="page-title">Dashboard</h1>
-                        <p class="page-subtitle">Here's your spending overview</p>
+                        <p class="page-subtitle">Your spending overview</p>
                     </div>
                     <div class="header-actions">
                         <div class="search-box">
-                            <span class="search-icon">🔍</span>
+                            <i data-lucide="search"></i>
                             <input type="text" id="searchInput" placeholder="Search expenses…" oninput="applyFilters()" />
                         </div>
                     </div>
                 </div>
 
-                <!-- Stats Row -->
                 <div class="stats-row">
                     <div class="stat-card">
-                        <div class="stat-icon stat-icon--purple">💸</div>
+                        <div class="stat-icon"><i data-lucide="banknote"></i></div>
                         <div class="stat-info">
-                            <span class="stat-label">Total Spent</span>
-                            <span class="stat-value" id="totalSpent">₹0.00</span>
+                            <span class="stat-label">Total spent</span>
+                            <span class="stat-value num" id="totalSpent">₹0.00</span>
                         </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-icon stat-icon--teal">📅</div>
+                        <div class="stat-icon stat-icon--success"><i data-lucide="calendar"></i></div>
                         <div class="stat-info">
-                            <span class="stat-label">This Month</span>
-                            <span class="stat-value" id="thisMonth">₹0.00</span>
+                            <span class="stat-label">This month</span>
+                            <span class="stat-value num" id="thisMonth">₹0.00</span>
                         </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-icon stat-icon--coral">🧾</div>
+                        <div class="stat-icon stat-icon--warning"><i data-lucide="receipt"></i></div>
                         <div class="stat-info">
-                            <span class="stat-label">Total Expenses</span>
-                            <span class="stat-value" id="totalItems">0</span>
+                            <span class="stat-label">Total expenses</span>
+                            <span class="stat-value num" id="totalItems">0</span>
                         </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-icon stat-icon--green">📊</div>
+                        <div class="stat-icon stat-icon--muted"><i data-lucide="bar-chart-3"></i></div>
                         <div class="stat-info">
-                            <span class="stat-label">Avg per Expense</span>
-                            <span class="stat-value" id="avgAmount">₹0.00</span>
+                            <span class="stat-label">Avg per expense</span>
+                            <span class="stat-value num" id="avgAmount">₹0.00</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Charts Row -->
                 <div class="charts-row">
                     <div class="chart-card">
                         <div class="chart-card-header">
-                            <h3>Spending by Category</h3>
+                            <h3>Spending by category</h3>
                         </div>
                         <div class="chart-doughnut-wrapper">
                             <canvas id="pieChart"></canvas>
                             <div class="donut-center" id="donutCenter">
-                                <span class="donut-pct" id="donutPct">0%</span>
-                                <span class="donut-lbl">Top Cat.</span>
+                                <span class="donut-pct num" id="donutPct">0%</span>
+                                <span class="donut-lbl">Top cat.</span>
                             </div>
                         </div>
                     </div>
-                    <div class="chart-card chart-card--wide">
+                    <div class="chart-card">
                         <div class="chart-card-header">
-                            <h3>Monthly Spending Trend</h3>
+                            <h3>Monthly spending trend</h3>
                             <div class="chart-tabs">
                                 <button class="chart-tab active" onclick="switchChartTab(this,'income')">Income</button>
                                 <button class="chart-tab" onclick="switchChartTab(this,'outcome')">Outcome</button>
@@ -297,32 +267,31 @@
                     </div>
                 </div>
 
-                <!-- Recent Transactions -->
                 <div class="transactions-card">
                     <div class="transactions-header">
-                        <h3>Recent Transactions</h3>
+                        <h3>Recent transactions</h3>
                         <div class="filter-row">
                             <select id="filterCategory" onchange="applyFilters()" class="filter-select">
-                                <option value="">All Categories</option>
-                                <option value="Food">🍕 Food</option>
-                                <option value="Transport">🚖 Transport</option>
-                                <option value="Shopping">🛒 Shopping</option>
-                                <option value="Rent">🏠 Rent</option>
-                                <option value="Entertainment">🎬 Entertainment</option>
-                                <option value="Bills">💡 Bills</option>
-                                <option value="Health">🏥 Health</option>
-                                <option value="Other">📦 Other</option>
+                                <option value="">All categories</option>
+                                <option value="Food">Food</option>
+                                <option value="Transport">Transport</option>
+                                <option value="Shopping">Shopping</option>
+                                <option value="Rent">Rent</option>
+                                <option value="Entertainment">Entertainment</option>
+                                <option value="Bills">Bills</option>
+                                <option value="Health">Health</option>
+                                <option value="Other">Other</option>
                             </select>
                             <select id="filterDateRange" onchange="applyFilters()" class="filter-select">
-                                <option value="all">All Time</option>
-                                <option value="this_month">This Month</option>
-                                <option value="last_month">Last Month</option>
+                                <option value="all">All time</option>
+                                <option value="this_month">This month</option>
+                                <option value="last_month">Last month</option>
                             </select>
                             <select id="sortBy" onchange="applyFilters()" class="filter-select">
-                                <option value="date_desc">📅 Newest</option>
-                                <option value="date_asc">📅 Oldest</option>
-                                <option value="amount_desc">💰 Highest</option>
-                                <option value="amount_asc">💰 Lowest</option>
+                                <option value="date_desc">Newest</option>
+                                <option value="date_asc">Oldest</option>
+                                <option value="amount_desc">Highest amount</option>
+                                <option value="amount_asc">Lowest amount</option>
                             </select>
                         </div>
                     </div>
@@ -330,7 +299,7 @@
                 </div>
             </section>
 
-            <!-- ──── ANALYTICS SECTION ──── -->
+            <!-- ANALYTICS -->
             <section id="section-analytics" class="content-section">
                 <div class="page-header">
                     <div>
@@ -340,36 +309,38 @@
                 </div>
                 <div class="analytics-grid">
                     <div class="chart-card">
-                        <div class="chart-card-header"><h3>Category Breakdown</h3></div>
+                        <div class="chart-card-header"><h3>Category breakdown</h3></div>
                         <div class="chart-doughnut-wrapper">
                             <canvas id="pieChart2"></canvas>
                             <div class="donut-center">
-                                <span class="donut-pct" id="donutPct2">0%</span>
+                                <span class="donut-pct num" id="donutPct2">0%</span>
                                 <span class="donut-lbl">Spent</span>
                             </div>
                         </div>
                     </div>
                     <div class="chart-card">
-                        <div class="chart-card-header"><h3>6-Month Bar Chart</h3></div>
+                        <div class="chart-card-header"><h3>6-month bar chart</h3></div>
                         <div class="chart-bar-wrapper">
                             <canvas id="barChart2"></canvas>
                         </div>
                     </div>
                     <div class="chart-card chart-card--full">
-                        <div class="chart-card-header"><h3>Category Spend Breakdown</h3></div>
+                        <div class="chart-card-header"><h3>Category spend breakdown</h3></div>
                         <div id="categoryBreakdown" class="category-breakdown-list"></div>
                     </div>
                 </div>
             </section>
 
-            <!-- ──── HISTORY SECTION ──── -->
+            <!-- HISTORY -->
             <section id="section-history" class="content-section">
                 <div class="page-header">
                     <div>
-                        <h1 class="page-title">Expense History</h1>
+                        <h1 class="page-title">Expense history</h1>
                         <p class="page-subtitle">All your past expenses</p>
                     </div>
-                    <button class="btn-primary" onclick="exportCSV()">⬇️ Export CSV</button>
+                    <button class="btn-primary" onclick="exportCSV()">
+                        <i data-lucide="download"></i> Export CSV
+                    </button>
                 </div>
                 <div class="transactions-card">
                     <ul id="historyList" class="expense-list"></ul>
@@ -377,7 +348,7 @@
             </section>
 
         </main>
-    </div><!-- /app-shell -->
+    </div>
 
     <script src="app.js"></script>
 </body>

@@ -1,69 +1,37 @@
 import json
-import boto3
 import uuid
-import os
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
-dynamodb = boto3.resource('dynamodb')
-table = dynamodb.Table(os.environ['TABLE_NAME'])
+from common import get_user_id, log, respond, table
 
-# CORS headers - required for browser to accept the response
-CORS_HEADERS = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
-}
 
 def lambda_handler(event, context):
-    print("Received event:", json.dumps(event))
+    user_id = get_user_id(event)
+    if not user_id:
+        return respond(401, {"error": "Unauthorized"})
 
-    # Safely parse the request body
-    body = {}
-    if 'body' in event and event['body'] is not None:
-        try:
-            body = json.loads(event['body'])
-        except json.JSONDecodeError:
-            return {
-                'statusCode': 400,
-                'headers': CORS_HEADERS,
-                'body': json.dumps({'error': 'Invalid JSON format'})
-            }
-    else:
-        # Fallback for direct Lambda testing
-        body = event
-
-    # Validate required fields
-    if 'description' not in body or 'amount' not in body:
-        return {
-            'statusCode': 400,
-            'headers': CORS_HEADERS,
-            'body': json.dumps({'error': 'Missing description or amount'})
-        }
-
-    # Convert amount to Decimal (DynamoDB requires this)
     try:
-        amount_decimal = Decimal(str(body['amount']))
-    except:
-        return {
-            'statusCode': 400,
-            'headers': CORS_HEADERS,
-            'body': json.dumps({'error': 'Invalid amount value'})
-        }
+        body = json.loads(event.get("body") or "{}")
+    except json.JSONDecodeError:
+        return respond(400, {"error": "Invalid JSON format"})
 
-    # Build the item
+    if "description" not in body or "amount" not in body:
+        return respond(400, {"error": "Missing description or amount"})
+
+    try:
+        amount = Decimal(str(body["amount"]))
+    except (InvalidOperation, TypeError, ValueError):
+        return respond(400, {"error": "Invalid amount value"})
+
     item = {
-        'expenseId': str(uuid.uuid4()),
-        'description': body['description'],
-        'amount': amount_decimal,
-        'category': body.get('category', 'General'),
-        'date': body.get('date', '')
+        "userId": user_id,
+        "expenseId": str(uuid.uuid4()),
+        "description": str(body["description"])[:200],
+        "amount": amount,
+        "category": body.get("category", "General"),
+        "date": body.get("date", ""),   # ✅ always present (empty string if omitted)
     }
 
-    # Save to DynamoDB
     table.put_item(Item=item)
-
-    return {
-        'statusCode': 201,
-        'headers': CORS_HEADERS,
-        'body': json.dumps({'id': item['expenseId']})
-    }
+    log("expense_created", userId=user_id, expenseId=item["expenseId"])
+    return respond(201, {"id": item["expenseId"]})

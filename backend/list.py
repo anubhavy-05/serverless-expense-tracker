@@ -1,36 +1,22 @@
-import json, boto3, os
-from decimal import Decimal
+from boto3.dynamodb.conditions import Key
 
-dynamodb = boto3.resource('dynamodb')
-table = dynamodb.Table(os.environ['TABLE_NAME'])
+from common import get_user_id, log, respond, table
 
-# CORS headers - required for browser to accept the response
-CORS_HEADERS = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
-}
-
-# Helper to convert Decimal to float for JSON serialization
-class DecimalEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, Decimal):
-            return float(obj)
-        return super().default(obj)
 
 def lambda_handler(event, context):
-    try:
-        response = table.scan()
-        items = response.get('Items', [])
+    user_id = get_user_id(event)
+    if not user_id:
+        return respond(401, {"error": "Unauthorized"})
 
-        return {
-            'statusCode': 200,
-            'headers': CORS_HEADERS,
-            'body': json.dumps(items, cls=DecimalEncoder)
-        }
-    except Exception as e:
-        return {
-            'statusCode': 500,
-            'headers': CORS_HEADERS,
-            'body': json.dumps({'error': str(e)})
-        }
+    # Query, not Scan: only this user's partition is ever read.
+    items = []
+    kwargs = {"KeyConditionExpression": Key("userId").eq(user_id)}
+    while True:
+        page = table.query(**kwargs)
+        items.extend(page.get("Items", []))
+        if "LastEvaluatedKey" not in page:
+            break
+        kwargs["ExclusiveStartKey"] = page["LastEvaluatedKey"]
+
+    log("expenses_listed", userId=user_id, count=len(items))
+    return respond(200, items)

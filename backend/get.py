@@ -1,33 +1,17 @@
-import json, boto3, os
-from decimal import Decimal
+from common import get_user_id, respond, table
 
-dynamodb = boto3.resource('dynamodb')
-table = dynamodb.Table(os.environ['TABLE_NAME'])
-
-CORS_HEADERS = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
-}
-
-class DecimalEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, Decimal):
-            return float(obj)
-        return super().default(obj)
 
 def lambda_handler(event, context):
-    expense_id = event['pathParameters']['expenseId']
-    response = table.get_item(Key={'expenseId': expense_id})
-    item = response.get('Item')
-    if item:
-        return {
-            'statusCode': 200,
-            'headers': CORS_HEADERS,
-            'body': json.dumps(item, cls=DecimalEncoder)
-        }
-    return {
-        'statusCode': 404,
-        'headers': CORS_HEADERS,
-        'body': json.dumps({'error': 'Not found'})
-    }
+    user_id = get_user_id(event)
+    if not user_id:
+        return respond(401, {"error": "Unauthorized"})
+
+    expense_id = (event.get("pathParameters") or {}).get("expenseId")
+    if not expense_id:
+        return respond(400, {"error": "Missing expenseId"})
+
+    # Composite key: guessing someone else's expenseId returns nothing.
+    item = table.get_item(Key={"userId": user_id, "expenseId": expense_id}).get("Item")
+    if not item:
+        return respond(404, {"error": "Not found"})
+    return respond(200, item)

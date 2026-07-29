@@ -1,36 +1,56 @@
-import json, boto3, os
-from decimal import Decimal
+import json
+from decimal import Decimal, InvalidOperation
 
-dynamodb = boto3.resource('dynamodb')
-table = dynamodb.Table(os.environ['TABLE_NAME'])
+from botocore.exceptions import ClientError
 
-CORS_HEADERS = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
-}
+from common import get_user_id, log, respond, table
+
+EDITABLE = ["description", "amount", "category", "date"]
+
 
 def lambda_handler(event, context):
-    expense_id = event['pathParameters']['expenseId']
-    body = json.loads(event['body'])
-    update_expr = "SET "
-    expr_values = {}
-    for key in ['description', 'amount', 'category', 'date']:
-        if key in body:
-            update_expr += f"{key} = :{key}, "
-            value = body[key]
-            # Convert amount to Decimal for DynamoDB
-            if key == 'amount':
+    user_id = get_user_id(event)
+    if not user_id:
+        return respond(401, {"error": "Unauthorized"})
+
+    expense_id = (event.get("pathParameters") or {}).get("expenseId")
+    if not expense_id:
+        return respond(400, {"error": "Missing expenseId"})
+
+    try:
+        body = json.loads(event.get("body") or "{}")
+    except json.JSONDecodeError:
+        return respond(400, {"error": "Invalid JSON format"})
+
+    parts, names, values = [], {}, {}
+    for key in EDITABLE:
+        if key not in body:
+            continue
+        value = body[key]
+        if key == "amount":
+            try:
                 value = Decimal(str(value))
-            expr_values[f":{key}"] = value
-    update_expr = update_expr.rstrip(', ')
-    table.update_item(
-        Key={'expenseId': expense_id},
-        UpdateExpression=update_expr,
-        ExpressionAttributeValues=expr_values
-    )
-    return {
-        'statusCode': 200,
-        'headers': CORS_HEADERS,
-        'body': json.dumps({'message': 'Updated'})
-    }
+            except (InvalidOperation, TypeError, ValueError):
+                return respond(400, {"error": "Invalid amount value"})
+        parts.append(f"#{key} = :{key}")
+        names[f"#{key}"] = key  # names are reserved-word safe (e.g. "date")
+        values[f":{key}"] = value
+
+    if not parts:
+        return respond(400, {"error": "No updatable fields provided"})
+
+    try:
+        table.update_item(
+            Key={"userId": user_id, "expenseId": expense_id},
+            UpdateExpression="SET " + ", ".join(parts),
+            ExpressionAttributeNames=names,
+            ExpressionAttributeValues=values,
+            ConditionExpression="attribute_exists(expenseId)",
+        )
+    except ClientError as err:
+        if err.response["Error"]["Code"] == "ConditionalCheckFailedException":
+            return respond(404, {"error": "Not found"})
+        raise
+
+    log("expense_updated", userId=user_id, expenseId=expense_id)
+    return respond(200, {"message": "Updated"})

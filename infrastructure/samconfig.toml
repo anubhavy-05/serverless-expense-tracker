@@ -1,0 +1,14 @@
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "expense-tracker"
+resolve_s3 = true
+s3_prefix = "expense-tracker"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "StageName=\"prod\" AlarmEmail=\"pedaltriangle@gmail.com\" CallbackUrl=\"https://prod.d2wuf5mzs8220o.amplifyapp.com/index.html\" DefaultBudget=500"
+image_repositories = []
+
+[default.global.parameters]
+region = "us-east-1"

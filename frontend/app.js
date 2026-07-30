@@ -603,6 +603,7 @@ async function loadSankeyChartData(range) {
     const { links } = await res.json();
     renderSankeyChart('sankeyChart', links);
     renderSankeyChart('sankeyChart2', links);
+    renderSankeyChart('sankeyChartAnalytics', links); // <-- FIX: renders to analytics page
   } catch (err) {
     console.warn('Sankey chart failed:', err.message);
   }

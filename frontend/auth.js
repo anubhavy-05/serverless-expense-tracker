@@ -1,15 +1,10 @@
 // ════════════════════════════════════════════════════════════
-// Cognito Hosted UI login with Authorization Code + PKCE.
-// No secrets in the browser, no implicit-flow tokens in the URL bar.
-//
-// Exposes: Auth.init(), Auth.login(), Auth.logout(),
-//          Auth.getIdToken(), Auth.getUserEmail()
+// Auth module: Cognito Hosted UI with PKCE
 // ════════════════════════════════════════════════════════════
 const Auth = (() => {
   const cfg = () => window.APP_CONFIG;
   const STORE = 'et_tokens';
 
-  // ── PKCE helpers ──────────────────────────────────────────
   function randomString(len = 64) {
     const bytes = crypto.getRandomValues(new Uint8Array(len));
     return Array.from(bytes, b => ('0' + b.toString(16)).slice(-2)).join('').slice(0, len);
@@ -25,25 +20,21 @@ const Auth = (() => {
     return base64Url(digest);
   }
 
-  // ── Token storage ─────────────────────────────────────────
   function saveTokens(tokens) {
     tokens.expires_at = Date.now() + (tokens.expires_in || 3600) * 1000;
     sessionStorage.setItem(STORE, JSON.stringify(tokens));
   }
 
   function readTokens() {
-    try { return JSON.parse(sessionStorage.getItem(STORE) || 'null'); }
-    catch { return null; }
+    try { return JSON.parse(sessionStorage.getItem(STORE) || 'null'); } catch { return null; }
   }
 
   function clearTokens() { sessionStorage.removeItem(STORE); }
 
   function decodeJwt(token) {
-    try { return JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); }
-    catch { return {}; }
+    try { return JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); } catch { return {}; }
   }
 
-  // ── Public API ────────────────────────────────────────────
   async function login() {
     const verifier = randomString();
     sessionStorage.setItem('et_pkce_verifier', verifier);
@@ -102,7 +93,6 @@ const Auth = (() => {
     return true;
   }
 
-  // Call once on page load. Returns true when a session is available.
   async function init() {
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
@@ -112,11 +102,12 @@ const Auth = (() => {
     }
     const tokens = readTokens();
     if (!tokens) return false;
-    if (Date.now() > tokens.expires_at - 60_000) return await refresh();
+    if (Date.now() > tokens.expires_at - 60000) return await refresh();
     return true;
   }
 
   function getIdToken() { return readTokens()?.id_token || null; }
+
   function getUserEmail() {
     const t = getIdToken();
     return t ? decodeJwt(t).email : null;
@@ -125,7 +116,7 @@ const Auth = (() => {
   return { init, login, logout, getIdToken, getUserEmail };
 })();
 
-// ── Authenticated fetch wrapper: every API call carries the JWT ──
+// ── Authenticated fetch wrapper ──────────────────────────────
 async function apiFetch(path = '', options = {}) {
   const token = Auth.getIdToken();
   if (!token) { Auth.login(); throw new Error('Not authenticated'); }

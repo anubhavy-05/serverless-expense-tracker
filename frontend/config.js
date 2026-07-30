@@ -8,3 +8,5 @@ window.APP_CONFIG = {
   CLIENT_ID: '3i417gkrinqhjigm4tniv6etim',
   REDIRECT_URI: window.location.origin + '/index.html',
 };
+
+

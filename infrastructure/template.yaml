@@ -380,6 +380,54 @@ Resources:
             Schedule: cron(0 9 * * ? *)
             Description: Daily budget check
 
+  TrendAggregatorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: trend.lambda_handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ExpensesTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ExpenseApi
+            Path: /chart/trend
+            Method: GET
+
+  SankeyAggregatorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: sankey.lambda_handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ExpensesTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ExpenseApi
+            Path: /chart/sankey
+            Method: GET
+
+  AnomalyDetectorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: anomaly.lambda_handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ExpensesTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ExpenseApi
+            Path: /alert/anomalies
+            Method: GET
+
   # ── Observability ────────────────────────────────────────
   AlarmTopic:
     Type: AWS::SNS::Topic

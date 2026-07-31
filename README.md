@@ -170,8 +170,8 @@ serverless-expense-tracker/
 │
 ├── docs/                          # Screenshots and documentation
 │   ├── dark-mode.png
-│   ├── light-mode.png
-│   └── PHASE1-GUIDE.md
+│   └── light-mode.png
+│   
 │
 ├── README.md                      # Project documentation
 └── LICENSE                        # MIT License

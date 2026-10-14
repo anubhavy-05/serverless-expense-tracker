@@ -1,8 +1,9 @@
 import json
 import uuid
+from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 
-from common import get_user_id, log, respond, table
+from common import get_user_id, log, parse_date, respond, table
 
 
 def lambda_handler(event, context):
@@ -22,14 +23,25 @@ def lambda_handler(event, context):
         amount = Decimal(str(body["amount"]))
     except (InvalidOperation, TypeError, ValueError):
         return respond(400, {"error": "Invalid amount value"})
+    if not amount.is_finite() or amount <= 0:
+        return respond(400, {"error": "Amount must be greater than 0"})
+
+    # `date` is the GSI sort key: it can't be empty, so default to today.
+    raw_date = body.get("date")
+    if raw_date in (None, ""):
+        date = datetime.now(timezone.utc).date().isoformat()
+    else:
+        date = parse_date(raw_date)
+        if not date:
+            return respond(400, {"error": "Invalid date, expected YYYY-MM-DD"})
 
     item = {
         "userId": user_id,
         "expenseId": str(uuid.uuid4()),
         "description": str(body["description"])[:200],
         "amount": amount,
-        "category": body.get("category", "General"),
-        "date": body.get("date", ""),   # ✅ always present (empty string if omitted)
+        "category": str(body.get("category") or "General")[:50],
+        "date": date,
     }
 
     table.put_item(Item=item)

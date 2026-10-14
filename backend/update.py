@@ -3,7 +3,7 @@ from decimal import Decimal, InvalidOperation
 
 from botocore.exceptions import ClientError
 
-from common import get_user_id, log, respond, table
+from common import get_user_id, log, parse_date, respond, table
 
 EDITABLE = ["description", "amount", "category", "date"]
 
@@ -32,6 +32,15 @@ def lambda_handler(event, context):
                 value = Decimal(str(value))
             except (InvalidOperation, TypeError, ValueError):
                 return respond(400, {"error": "Invalid amount value"})
+            if not value.is_finite() or value <= 0:
+                return respond(400, {"error": "Amount must be greater than 0"})
+        elif key == "date":
+            # GSI sort key: must be a non-empty ISO date
+            value = parse_date(value)
+            if not value:
+                return respond(400, {"error": "Invalid date, expected YYYY-MM-DD"})
+        elif key == "category":
+            value = str(value or "General")[:50]
         parts.append(f"#{key} = :{key}")
         names[f"#{key}"] = key  # names are reserved-word safe (e.g. "date")
         values[f":{key}"] = value

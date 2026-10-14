@@ -2,6 +2,7 @@
 import json
 import logging
 import os
+from datetime import datetime
 from decimal import Decimal
 
 import boto3
@@ -38,6 +39,19 @@ def respond(status, payload):
         "headers": CORS_HEADERS,
         "body": json.dumps(payload, cls=DecimalEncoder),
     }
+
+
+def parse_date(value):
+    """Return `value` as a canonical 'YYYY-MM-DD' string, or None if invalid.
+
+    `date` is the sort key of the UserDateIndex GSI, so it must never be an
+    empty string (DynamoDB rejects empty index keys) and must be ISO formatted
+    for the date-range queries in trend/sankey/anomaly to match it.
+    """
+    try:
+        return datetime.strptime(str(value).strip()[:10], "%Y-%m-%d").date().isoformat()
+    except (TypeError, ValueError):
+        return None
 
 
 def get_user_id(event):

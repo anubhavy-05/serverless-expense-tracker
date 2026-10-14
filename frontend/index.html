@@ -4,21 +4,29 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ExpenseTrack — Smart Expense Tracker</title>
+    <meta name="color-scheme" content="dark light" />
+    <script>
+        // Apply the saved theme before first paint to avoid a flash
+        (function () {
+            try {
+                var t = localStorage.getItem('et_theme');
+                if (!t) t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+                document.documentElement.setAttribute('data-theme', t);
+            } catch (e) { /* storage unavailable */ }
+        })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js">
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sankey@0.12.0/dist/chartjs-chart-sankey.min.js">
-    </script>
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js">
-    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sankey@0.12.0/dist/chartjs-chart-sankey.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js"></script>
     <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
     <!-- Toast -->
-    <div id="toast" class="toast" aria-live="polite"></div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
     <!-- Delete Modal -->
     <div id="deleteModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="deleteMTitle">
@@ -27,115 +35,106 @@
             <h3 id="deleteMTitle">Delete expense?</h3>
             <p>This action cannot be undone.</p>
             <div class="modal-actions">
-                <button id="cancelDeleteBtn" class="btn-ghost">Cancel</button>
-                <button id="confirmDeleteBtn" class="btn-danger">Yes, delete</button>
+                <button type="button" id="cancelDeleteBtn" class="btn-ghost">Cancel</button>
+                <button type="button" id="confirmDeleteBtn" class="btn-danger">Yes, delete</button>
             </div>
         </div>
     </div>
 
     <!-- Edit Modal -->
     <div id="editModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="editMTitle">
-        <div class="modal-box modal-box--wide">
+        <form class="modal-box modal-box--wide" id="editForm" novalidate>
             <div class="modal-icon modal-icon--accent"><i data-lucide="pencil"></i></div>
             <h3 id="editMTitle">Edit expense</h3>
             <input type="hidden" id="editExpenseId" />
-            <div class="edit-form">
-                <div class="field-group">
+            <div class="form-grid">
+                <div class="field-group field-group--full">
                     <label for="editDesc">Description</label>
-                    <input type="text" id="editDesc" placeholder="e.g. Grocery shopping" required />
+                    <input type="text" id="editDesc" placeholder="e.g. Grocery shopping" maxlength="200" required />
                 </div>
                 <div class="field-group">
                     <label for="editAmount">Amount (₹)</label>
-                    <input type="number" id="editAmount" class="num" placeholder="0.00" step="0.01" required />
-                </div>
-                <div class="field-group">
-                    <label for="editCategory">Category</label>
-                    <select id="editCategory">
-                        <option value="">Select category</option>
-                        <option value="Food">Food</option>
-                        <option value="Transport">Transport</option>
-                        <option value="Shopping">Shopping</option>
-                        <option value="Rent">Rent</option>
-                        <option value="Entertainment">Entertainment</option>
-                        <option value="Bills">Bills</option>
-                        <option value="Health">Health</option>
-                        <option value="Other">Other</option>
-                    </select>
+                    <input type="number" id="editAmount" class="num" placeholder="0.00" step="0.01" min="0.01" required />
                 </div>
                 <div class="field-group">
                     <label for="editDate">Date</label>
-                    <input type="date" id="editDate" />
+                    <input type="date" id="editDate" required />
+                </div>
+                <div class="field-group field-group--full">
+                    <label>Category</label>
+                    <div class="cat-picker" id="editCategoryPicker" data-target="editCategory"></div>
+                    <input type="hidden" id="editCategory" />
                 </div>
             </div>
             <div class="modal-actions">
-                <button id="cancelEditBtn" class="btn-ghost">Cancel</button>
-                <button id="confirmEditBtn" class="btn-primary">Update expense</button>
+                <button type="button" id="cancelEditBtn" class="btn-ghost">Cancel</button>
+                <button type="submit" id="confirmEditBtn" class="btn-primary">Update expense</button>
             </div>
-        </div>
+        </form>
     </div>
 
     <!-- Add Expense Side Panel -->
-    <div id="addPanel" class="side-panel" aria-label="Add expense panel">
-        <div class="side-panel-inner">
+    <aside id="addPanel" class="side-panel" aria-label="Add expense panel" aria-hidden="true">
+        <form class="side-panel-inner" id="addForm" novalidate>
             <div class="side-panel-header">
-                <h3>New expense</h3>
-                <button class="panel-close-btn" onclick="closeAddPanel()" aria-label="Close panel">
+                <div>
+                    <h3>New expense</h3>
+                    <p class="muted small">Log a purchase in a few seconds.</p>
+                </div>
+                <button type="button" class="panel-close-btn" data-action="close-panel" aria-label="Close panel">
                     <i data-lucide="x"></i>
                 </button>
             </div>
+
+            <div class="amount-hero">
+                <span class="amount-hero-symbol">₹</span>
+                <input type="number" id="amount" class="num" placeholder="0.00" step="0.01" min="0.01" inputmode="decimal" aria-label="Amount in rupees" required />
+            </div>
+
             <div class="field-group">
                 <label for="desc">Description</label>
-                <input type="text" id="desc" placeholder="e.g. Coffee at CCD" required />
+                <input type="text" id="desc" placeholder="e.g. Coffee at CCD" maxlength="200" required />
             </div>
             <div class="field-group">
-                <label for="amount">Amount (₹)</label>
-                <input type="number" id="amount" class="num" placeholder="0.00" step="0.01" required />
-            </div>
-            <div class="field-group">
-                <label for="category">Category</label>
-                <select id="category">
-                    <option value="">Select category</option>
-                    <option value="Food">Food</option>
-                    <option value="Transport">Transport</option>
-                    <option value="Shopping">Shopping</option>
-                    <option value="Rent">Rent</option>
-                    <option value="Entertainment">Entertainment</option>
-                    <option value="Bills">Bills</option>
-                    <option value="Health">Health</option>
-                    <option value="Other">Other</option>
-                </select>
+                <label>Category</label>
+                <div class="cat-picker" id="categoryPicker" data-target="category"></div>
+                <input type="hidden" id="category" />
             </div>
             <div class="field-group">
                 <label for="date">Date</label>
-                <input type="date" id="date" />
+                <input type="date" id="date" required />
             </div>
             <div class="field-group">
-                <label for="receipt">Receipt (optional, max 5 MB)</label>
-                <input type="file" id="receipt" accept="image/*,application/pdf" />
+                <label for="receipt">Receipt <span class="label-hint">optional · JPG, PNG, WEBP or PDF · max 5 MB</span></label>
+                <label class="file-drop" for="receipt">
+                    <i data-lucide="paperclip"></i>
+                    <span id="receiptName">Attach a receipt</span>
+                </label>
+                <input type="file" id="receipt" class="visually-hidden" accept="image/jpeg,image/png,image/webp,application/pdf" />
             </div>
-            <button id="submitBtn" class="btn-primary btn-full" onclick="submitExpense()">
+            <button type="submit" id="submitBtn" class="btn-primary btn-full">
                 <i data-lucide="plus"></i> Add expense
             </button>
-        </div>
-    </div>
-    <div id="panelOverlay" class="panel-overlay" onclick="closeAddPanel()"></div>
+        </form>
+    </aside>
+    <div id="panelOverlay" class="panel-overlay" data-action="close-panel"></div>
 
     <!-- Mobile Top Bar -->
-    <div class="mobile-topbar">
-        <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleSidebar()" aria-label="Toggle menu">
+    <header class="mobile-topbar">
+        <button type="button" class="hamburger-btn" id="hamburgerBtn" aria-label="Toggle menu">
             <i data-lucide="menu"></i>
         </button>
         <div class="mobile-brand">
             <span class="brand-icon"><i data-lucide="wallet"></i></span>
             ExpenseTrack
         </div>
-        <button class="mobile-dark-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
-            <i id="mobileThemeIcon" data-lucide="sun"></i>
-            <span id="mobileThemeLabel">Light</span>
+        <button type="button" class="icon-btn theme-toggle" data-action="toggle-theme" aria-label="Toggle theme">
+            <i data-lucide="sun" class="theme-icon-light"></i>
+            <i data-lucide="moon" class="theme-icon-dark"></i>
         </button>
-    </div>
+    </header>
 
-    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
     <!-- App Shell -->
     <div class="app-shell">
@@ -147,55 +146,60 @@
                 <span>ExpenseTrack</span>
             </div>
 
-            <div class="sidebar-user">
-                <p class="user-welcome">Welcome back</p>
-                <p class="user-name" id="sidebarUserName">—</p>
-            </div>
+            <nav class="sidebar-nav" aria-label="Main">
+                <p class="nav-heading">Menu</p>
+                <button type="button" class="nav-link active" data-section="dashboard">
+                    <i data-lucide="layout-dashboard"></i> Dashboard
+                </button>
+                <button type="button" class="nav-link" data-section="analytics">
+                    <i data-lucide="pie-chart"></i> Analytics
+                </button>
+                <button type="button" class="nav-link" data-section="history">
+                    <i data-lucide="history"></i> History
+                </button>
+            </nav>
 
-            <div class="wallet-section">
-                <p class="wallet-label">Wallet balance</p>
-                <h2 class="wallet-amount num" id="sidebarBalance">₹0.00</h2>
-                <div class="wallet-change neutral" id="walletChange">
-                    <span class="change-dot"></span> Loading…
+            <div class="sidebar-auth-only">
+                <div class="wallet-section">
+                    <p class="wallet-label">Spent this month</p>
+                    <h2 class="wallet-amount num" id="sidebarBalance">₹0</h2>
+                    <div class="wallet-change neutral" id="walletChange">
+                        <span class="change-dot"></span> Loading…
+                    </div>
+                </div>
+
+                <div class="quick-actions">
+                    <p class="nav-heading">Quick actions</p>
+                    <button type="button" class="qa-btn" data-action="open-panel">
+                        <i data-lucide="plus-circle"></i>
+                        <span>Add expense</span>
+                    </button>
+                    <button type="button" class="qa-btn" data-action="export-csv">
+                        <i data-lucide="download"></i>
+                        <span>Export CSV</span>
+                    </button>
+                    <label class="qa-btn" tabindex="0">
+                        <i data-lucide="upload"></i>
+                        <span>Import CSV</span>
+                        <input id="importInput" type="file" hidden accept=".csv,text/csv" />
+                    </label>
                 </div>
             </div>
 
-            <div class="quick-actions">
-                <button class="qa-btn qa-btn--primary" onclick="openAddPanel()">
-                    <i data-lucide="plus"></i>
-                    <span>Add expense</span>
-                </button>
-                <button class="qa-btn qa-btn--ghost" onclick="exportCsv()">
-                    <i data-lucide="download"></i>
-                    <span>Export CSV</span>
-                </button>
-                <label class="qa-btn qa-btn--ghost" style="cursor:pointer;">
-                    <i data-lucide="upload"></i>
-                    <span>Import CSV</span>
-                    <input id="importInput" type="file" hidden accept=".csv,text/csv" />
-                </label>
-            </div>
-
-            <nav class="sidebar-nav">
-                <a href="#" class="nav-link active" id="navDashboard" onclick="showSection('dashboard', this)">
-                    <i data-lucide="layout-dashboard"></i> Dashboard
-                </a>
-                <a href="#" class="nav-link" id="navAnalytics" onclick="showSection('analytics', this)">
-                    <i data-lucide="trending-up"></i> Analytics
-                </a>
-                <a href="#" class="nav-link" id="navHistory" onclick="showSection('history', this)">
-                    <i data-lucide="history"></i> History
-                </a>
-            </nav>
-
             <div class="sidebar-footer">
-                <button class="dark-toggle" id="darkToggleBtn" onclick="toggleTheme()" aria-label="Toggle theme">
-                    <i id="themeIcon" data-lucide="sun"></i>
-                    <span id="themeLabel">Light mode</span>
-                </button>
-                <button class="dark-toggle" style="margin-top:8px;" id="logoutBtn">
-                    <i data-lucide="log-out"></i>
-                    <span>Log out</span>
+                <div class="user-chip hidden" id="userChip">
+                    <span class="user-avatar" id="userAvatar">U</span>
+                    <div class="user-chip-text">
+                        <span class="user-welcome">Signed in as</span>
+                        <span class="user-name" id="sidebarUserName">—</span>
+                    </div>
+                    <button type="button" class="icon-btn" id="logoutBtn" aria-label="Log out" title="Log out">
+                        <i data-lucide="log-out"></i>
+                    </button>
+                </div>
+                <button type="button" class="theme-switch" data-action="toggle-theme" aria-label="Toggle theme">
+                    <span class="theme-switch-opt theme-switch-opt--light"><i data-lucide="sun"></i> Light</span>
+                    <span class="theme-switch-opt theme-switch-opt--dark"><i data-lucide="moon"></i> Dark</span>
                 </button>
             </div>
         </aside>
@@ -203,26 +207,28 @@
         <!-- Main -->
         <main class="main-content">
 
-            <!-- DASHBOARD -->
+            <!-- ═══════════ DASHBOARD ═══════════ -->
             <section id="section-dashboard" class="content-section active">
 
                 <div class="page-header">
                     <div>
-                        <h1 class="page-title">Dashboard</h1>
-                        <p class="page-subtitle">Your spending overview</p>
+                        <p class="page-eyebrow" id="todayLabel"></p>
+                        <h1 class="page-title" id="greeting">Dashboard</h1>
+                        <p class="page-subtitle">Here's how your spending is shaping up.</p>
                     </div>
-                    <div class="header-actions">
-                        <button class="btn-primary" onclick="openAddPanel()">
+                    <div class="header-actions auth-only hidden">
+                        <button type="button" class="btn-primary" data-action="open-panel">
                             <i data-lucide="plus"></i> Add expense
                         </button>
                     </div>
                 </div>
 
                 <!-- Signed out state -->
-                <div id="signedOut" class="signed-out-msg">
-                    <p style="font-size:var(--fs-lg);margin-bottom:8px;">🔐 Sign in to view your expenses</p>
-                    <p class="muted" style="margin-bottom:12px;">Track spending, visualize trends, and stay on budget.</p>
-                    <button class="btn-primary" onclick="Auth.login()">
+                <div id="signedOut" class="signed-out-card">
+                    <div class="signed-out-icon"><i data-lucide="lock"></i></div>
+                    <h2>Sign in to view your expenses</h2>
+                    <p class="muted">Track spending, visualize trends, and stay on budget — all in one place.</p>
+                    <button type="button" class="btn-primary" data-action="login">
                         <i data-lucide="log-in"></i> Log in / Sign up
                     </button>
                 </div>
@@ -230,95 +236,138 @@
                 <div id="signedIn" class="hidden">
 
                     <!-- Anomaly Banner -->
-                    <div id="anomalyBanner" class="hidden">
-                        <i data-lucide="alert-triangle"></i>
+                    <div id="anomalyBanner" class="alert-banner hidden" role="alert">
+                        <span class="alert-banner-icon"><i data-lucide="alert-triangle"></i></span>
                         <span id="anomalyText"></span>
                     </div>
 
-                    <!-- Stats Row - Big KPI Cards -->
+                    <!-- KPI cards -->
                     <div class="stats-row">
-                        <div class="stat-card">
-                            <div class="stat-icon"><i data-lucide="banknote"></i></div>
-                            <div class="stat-info">
-                                <span class="stat-label">Total spent</span>
-                                <span class="stat-value num" id="kpiTotal">₹0.00</span>
-                            </div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-icon stat-icon--success"><i data-lucide="calendar"></i></div>
-                            <div class="stat-info">
+                        <div class="stat-card stat-card--hero">
+                            <div class="stat-top">
                                 <span class="stat-label">This month</span>
-                                <span class="stat-value num" id="kpiMonth">₹0.00</span>
+                                <span class="stat-icon"><i data-lucide="calendar"></i></span>
                             </div>
+                            <span class="stat-value num" id="kpiMonth">₹0</span>
+                            <span class="stat-delta" id="kpiMonthDelta">—</span>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-icon stat-icon--warning"><i data-lucide="receipt"></i></div>
-                            <div class="stat-info">
-                                <span class="stat-label">Avg daily spend</span>
-                                <span class="stat-value num" id="kpiAvg">₹0.00</span>
+                            <div class="stat-top">
+                                <span class="stat-label">Avg per day</span>
+                                <span class="stat-icon stat-icon--warning"><i data-lucide="activity"></i></span>
                             </div>
+                            <span class="stat-value num" id="kpiAvg">₹0</span>
+                            <span class="stat-sub" id="kpiAvgSub">this month</span>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-icon stat-icon--muted"><i data-lucide="bar-chart-3"></i></div>
-                            <div class="stat-info">
-                                <span class="stat-label">Expenses</span>
-                                <span class="stat-value num" id="kpiCount">0</span>
+                            <div class="stat-top">
+                                <span class="stat-label">Top category</span>
+                                <span class="stat-icon stat-icon--success"><i data-lucide="target"></i></span>
                             </div>
+                            <span class="stat-value stat-value--text" id="kpiTopCat">—</span>
+                            <span class="stat-sub" id="kpiTopCatSub">this month</span>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-top">
+                                <span class="stat-label">All-time total</span>
+                                <span class="stat-icon stat-icon--muted"><i data-lucide="banknote"></i></span>
+                            </div>
+                            <span class="stat-value num" id="kpiTotal">₹0</span>
+                            <span class="stat-sub" id="kpiCount">0 expenses</span>
                         </div>
                     </div>
 
-                    <!-- Budget Card -->
-                    <div class="budget-card">
-                        <h3>💰 Budget Settings</h3>
-                        <div class="budget-row">
-                            <label>
-                                Monthly Budget (₹)
-                                <input id="budgetInput" type="number" step="0.01" min="0" placeholder="e.g. 5000" />
-                            </label>
-                            <button id="saveBudgetBtn" class="btn-primary" style="padding:10px 18px;">Save</button>
-                            <span id="budgetStatus" class="muted" style="font-size:13px;"></span>
-                        </div>
-                    </div>
+                    <!-- Budget + Trend -->
+                    <div class="dash-grid">
+                        <div class="card budget-card">
+                            <div class="card-header">
+                                <div>
+                                    <h3>Monthly budget</h3>
+                                    <p class="card-sub" id="budgetMonthLabel"></p>
+                                </div>
+                                <button type="button" class="btn-ghost btn-sm" id="editBudgetBtn">
+                                    <i data-lucide="pencil"></i> <span>Edit</span>
+                                </button>
+                            </div>
 
-                    <!-- Date range pills -->
-                    <div style="display:flex; gap:8px; margin: 0 0 16px 0; flex-wrap:wrap;">
-                        <button class="date-pill active" data-range="30">Last 30d</button>
-                        <button class="date-pill" data-range="month">This Month</button>
-                        <button class="date-pill" data-range="90">Last Quarter</button>
-                    </div>
+                            <div id="budgetView">
+                                <div class="budget-figures">
+                                    <span class="budget-spent num" id="budgetSpent">₹0</span>
+                                    <span class="budget-of muted">of <span class="num" id="budgetLimit">—</span></span>
+                                </div>
+                                <div class="progress" aria-hidden="true">
+                                    <div class="progress-fill" id="budgetBar" style="width:0%"></div>
+                                </div>
+                                <div class="budget-stats">
+                                    <div>
+                                        <span class="budget-stat-label">Remaining</span>
+                                        <span class="budget-stat-value num" id="budgetRemaining">—</span>
+                                    </div>
+                                    <div>
+                                        <span class="budget-stat-label">Safe per day</span>
+                                        <span class="budget-stat-value num" id="budgetPerDay">—</span>
+                                    </div>
+                                    <div>
+                                        <span class="budget-stat-label">Days left</span>
+                                        <span class="budget-stat-value num" id="budgetDaysLeft">—</span>
+                                    </div>
+                                </div>
+                                <p class="budget-note" id="budgetNote"></p>
+                                <div class="budget-top-cats">
+                                    <h4>Top categories this month</h4>
+                                    <div id="monthTopCats" class="category-breakdown-list"></div>
+                                </div>
+                            </div>
 
-                    <!-- Big Spending Trend Chart - Full Width -->
-                    <div class="chart-card chart-card--full" style="margin-bottom:24px;">
-                        <div class="chart-card-header">
-                            <h3>Spending Trend</h3>
+                            <form id="budgetForm" class="budget-form hidden" novalidate>
+                                <label for="budgetInput">Monthly budget (₹)</label>
+                                <div class="budget-form-row">
+                                    <input id="budgetInput" type="number" step="0.01" min="0" placeholder="e.g. 25000" class="num" />
+                                    <button type="submit" id="saveBudgetBtn" class="btn-primary">Save</button>
+                                    <button type="button" id="cancelBudgetBtn" class="btn-ghost">Cancel</button>
+                                </div>
+                                <span id="budgetStatus" class="muted small"></span>
+                            </form>
                         </div>
-                        <div class="chart-wrapper chart-wrapper--tall">
-                            <canvas id="trendChart"></canvas>
+
+                        <div class="card chart-card">
+                            <div class="card-header">
+                                <div>
+                                    <h3>Spending trend</h3>
+                                    <p class="card-sub"><span class="num" id="trendTotal">₹0</span> <span id="trendDelta"></span></p>
+                                </div>
+                                <div class="segmented" role="group" aria-label="Date range">
+                                    <button type="button" class="date-pill" data-range="7">7D</button>
+                                    <button type="button" class="date-pill active" data-range="30">30D</button>
+                                    <button type="button" class="date-pill" data-range="month">Month</button>
+                                    <button type="button" class="date-pill" data-range="90">90D</button>
+                                </div>
+                            </div>
+                            <div class="chart-wrapper chart-wrapper--tall">
+                                <canvas id="trendChart" aria-label="Daily spending trend chart" role="img"></canvas>
+                                <div class="chart-empty hidden"><i data-lucide="line-chart"></i><span>No spending in this period</span></div>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Transactions -->
-                    <div class="transactions-card">
+                    <div class="card transactions-card">
                         <div class="transactions-header">
                             <h3>Recent transactions</h3>
                             <div class="filter-row">
-                                <select id="filterCategory" onchange="applyFilters()" class="filter-select">
+                                <div class="search-box">
+                                    <i data-lucide="search"></i>
+                                    <input type="search" id="searchInput" placeholder="Search expenses…" aria-label="Search expenses" />
+                                </div>
+                                <select id="filterCategory" class="filter-select" aria-label="Filter by category">
                                     <option value="">All categories</option>
-                                    <option value="Food">Food</option>
-                                    <option value="Transport">Transport</option>
-                                    <option value="Shopping">Shopping</option>
-                                    <option value="Rent">Rent</option>
-                                    <option value="Entertainment">Entertainment</option>
-                                    <option value="Bills">Bills</option>
-                                    <option value="Health">Health</option>
-                                    <option value="Other">Other</option>
                                 </select>
-                                <select id="filterDateRange" onchange="applyFilters()" class="filter-select">
+                                <select id="filterDateRange" class="filter-select" aria-label="Filter by date">
                                     <option value="all">All time</option>
                                     <option value="this_month">This month</option>
                                     <option value="last_month">Last month</option>
                                 </select>
-                                <select id="sortBy" onchange="applyFilters()" class="filter-select">
+                                <select id="sortBy" class="filter-select" aria-label="Sort">
                                     <option value="date_desc">Newest</option>
                                     <option value="date_asc">Oldest</option>
                                     <option value="amount_desc">Highest amount</option>
@@ -326,106 +375,147 @@
                                 </select>
                             </div>
                         </div>
-                        <div id="status" class="status-text" style="padding:8px 20px;"></div>
+                        <div id="status" class="status-text" aria-live="polite"></div>
                         <ul id="expenseList" class="expense-list"></ul>
+                        <div class="list-footer hidden" id="recentFooter">
+                            <button type="button" class="link-btn" data-section="history">View all in history <i data-lucide="arrow-right"></i></button>
+                        </div>
                     </div>
                 </div>
             </section>
 
-            <!-- ANALYTICS - 2x2 charts + breakdown -->
+            <!-- ═══════════ ANALYTICS ═══════════ -->
             <section id="section-analytics" class="content-section">
                 <div class="page-header">
                     <div>
                         <h1 class="page-title">Analytics</h1>
                         <p class="page-subtitle">Deep dive into your spending patterns</p>
                     </div>
+                    <div class="segmented auth-only hidden" role="group" aria-label="Date range">
+                        <button type="button" class="date-pill" data-range="7">7D</button>
+                        <button type="button" class="date-pill active" data-range="30">30D</button>
+                        <button type="button" class="date-pill" data-range="month">Month</button>
+                        <button type="button" class="date-pill" data-range="90">90D</button>
+                    </div>
                 </div>
-                <div id="analyticsSignedOut" class="signed-out-msg">
-                    <p style="font-size:var(--fs-lg);margin-bottom:8px;">🔐 Sign in to view analytics</p>
-                    <button class="btn-primary" onclick="Auth.login()">
+                <div id="analyticsSignedOut" class="signed-out-card">
+                    <div class="signed-out-icon"><i data-lucide="lock"></i></div>
+                    <h2>Sign in to view analytics</h2>
+                    <button type="button" class="btn-primary" data-action="login">
                         <i data-lucide="log-in"></i> Log in / Sign up
                     </button>
                 </div>
                 <div id="analyticsSignedIn" class="hidden">
-
-                    <!-- Date range pills (reuse) -->
-                    <div style="display:flex; gap:8px; margin: 0 0 16px 0; flex-wrap:wrap;">
-                        <button class="date-pill active" data-range="30">Last 30d</button>
-                        <button class="date-pill" data-range="month">This Month</button>
-                        <button class="date-pill" data-range="90">Last Quarter</button>
-                    </div>
-
-                    <!-- 2x2 Chart Grid -->
                     <div class="analytics-grid">
-                        <!-- Trend -->
-                        <div class="chart-card">
-                            <div class="chart-card-header"><h3>Spending Trend</h3></div>
-                            <div class="chart-wrapper"><canvas id="trendChart2"></canvas></div>
-                        </div>
-                        <!-- Doughnut: Category Distribution -->
-                        <div class="chart-card">
-                            <div class="chart-card-header"><h3>Category Distribution</h3></div>
-                            <div class="chart-wrapper" style="position:relative;">
-                                <canvas id="pieChartAnalytics"></canvas>
-                                <div class="donut-center" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; pointer-events:none;">
-                                    <span class="donut-pct num" id="donutPctAnalytics">0%</span>
-                                    <span class="donut-lbl">Top cat.</span>
+                        <!-- Doughnut + breakdown -->
+                        <div class="card chart-card">
+                            <div class="card-header">
+                                <div>
+                                    <h3>Where your money goes</h3>
+                                    <p class="card-sub" id="rangeLabelCat"></p>
                                 </div>
                             </div>
-                        </div>
-                        <!-- Bar: Monthly spending -->
-                        <div class="chart-card">
-                            <div class="chart-card-header"><h3>Monthly Spending</h3></div>
-                            <div class="chart-wrapper"><canvas id="barChartAnalytics"></canvas></div>
-                        </div>
-                        <!-- Sankey: Money Flow -->
-                        <div class="chart-card">
-                            <div class="chart-card-header"><h3>Money Flow</h3></div>
-                            <div class="chart-wrapper"><canvas id="sankeyChartAnalytics"></canvas></div>
-                        </div>
-                    </div>
-
-                    <!-- Category Breakdown List (full width) -->
-                    <div class="chart-card chart-card--full" style="margin-top:16px;">
-                        <div class="chart-card-header"><h3>Category Spend Breakdown</h3></div>
-                        <div id="categoryBreakdown" class="category-breakdown-list"></div>
-                    </div>
-
-                    <!-- All transactions table -->
-                    <div class="transactions-card" style="margin-top:16px;">
-                        <div class="transactions-header">
-                            <h3>All transactions</h3>
-                            <div style="display:flex;gap:8px;">
-                                <button class="btn-ghost" onclick="exportCsv()" style="padding:6px 14px;">
-                                    <i data-lucide="download" style="font-size:14px;"></i> CSV
-                                </button>
+                            <div class="donut-layout">
+                                <div class="chart-wrapper chart-wrapper--donut">
+                                    <canvas id="pieChartAnalytics" aria-label="Spending by category" role="img"></canvas>
+                                    <div class="chart-empty hidden"><i data-lucide="pie-chart"></i><span>No data</span></div>
+                                </div>
+                                <div id="categoryBreakdown" class="category-breakdown-list"></div>
                             </div>
                         </div>
-                        <ul id="historyListAnalytics" class="expense-list"></ul>
+
+                        <!-- Bar: monthly spending -->
+                        <div class="card chart-card">
+                            <div class="card-header">
+                                <div>
+                                    <h3>Monthly spending</h3>
+                                    <p class="card-sub">Last 6 months <span id="barBudgetLegend" class="legend-dash hidden">budget</span></p>
+                                </div>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="barChartAnalytics" aria-label="Monthly spending" role="img"></canvas>
+                                <div class="chart-empty hidden"><i data-lucide="bar-chart-3"></i><span>No data</span></div>
+                            </div>
+                        </div>
+
+                        <!-- Trend -->
+                        <div class="card chart-card">
+                            <div class="card-header">
+                                <div>
+                                    <h3>Daily trend</h3>
+                                    <p class="card-sub" id="rangeLabelTrend"></p>
+                                </div>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="trendChart2" aria-label="Daily spending trend" role="img"></canvas>
+                                <div class="chart-empty hidden"><i data-lucide="line-chart"></i><span>No spending in this period</span></div>
+                            </div>
+                        </div>
+
+                        <!-- Weekday pattern -->
+                        <div class="card chart-card">
+                            <div class="card-header">
+                                <div>
+                                    <h3>Spending by weekday</h3>
+                                    <p class="card-sub" id="rangeLabelWeekday"></p>
+                                </div>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="weekdayChart" aria-label="Spending by weekday" role="img"></canvas>
+                                <div class="chart-empty hidden"><i data-lucide="bar-chart-3"></i><span>No data</span></div>
+                            </div>
+                        </div>
+
+                        <!-- Sankey: Money Flow -->
+                        <div class="card chart-card chart-card--full">
+                            <div class="card-header">
+                                <div>
+                                    <h3>Money flow</h3>
+                                    <p class="card-sub">How your total spend splits across categories</p>
+                                </div>
+                            </div>
+                            <div class="chart-wrapper chart-wrapper--sankey">
+                                <canvas id="sankeyChartAnalytics" aria-label="Money flow by category" role="img"></canvas>
+                                <div class="chart-empty hidden"><i data-lucide="git-branch"></i><span>No spending in this period</span></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
 
-            <!-- HISTORY -->
+            <!-- ═══════════ HISTORY ═══════════ -->
             <section id="section-history" class="content-section">
                 <div class="page-header">
                     <div>
                         <h1 class="page-title">Expense history</h1>
-                        <p class="page-subtitle">All your past expenses</p>
+                        <p class="page-subtitle">Every expense, grouped by month</p>
                     </div>
-                    <button class="btn-primary" onclick="exportCsv()">
+                    <button type="button" class="btn-primary auth-only hidden" data-action="export-csv">
                         <i data-lucide="download"></i> Export CSV
                     </button>
                 </div>
-                <div id="historySignedOut" class="signed-out-msg">
-                    <p style="font-size:var(--fs-lg);margin-bottom:8px;">🔐 Sign in to view history</p>
-                    <button class="btn-primary" onclick="Auth.login()">
+                <div id="historySignedOut" class="signed-out-card">
+                    <div class="signed-out-icon"><i data-lucide="lock"></i></div>
+                    <h2>Sign in to view history</h2>
+                    <button type="button" class="btn-primary" data-action="login">
                         <i data-lucide="log-in"></i> Log in / Sign up
                     </button>
                 </div>
                 <div id="historySignedIn" class="hidden">
-                    <div class="transactions-card">
-                        <ul id="historyList2" class="expense-list"></ul>
+                    <div class="card transactions-card">
+                        <div class="transactions-header">
+                            <h3 id="historyCount">All expenses</h3>
+                            <div class="filter-row">
+                                <div class="search-box">
+                                    <i data-lucide="search"></i>
+                                    <input type="search" id="historySearch" placeholder="Search history…" aria-label="Search history" />
+                                </div>
+                                <select id="historyCategory" class="filter-select" aria-label="Filter history by category">
+                                    <option value="">All categories</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="historyList2" class="history-groups"></div>
                     </div>
                 </div>
             </section>
@@ -433,7 +523,6 @@
         </main>
     </div>
 
-    <!-- Load separate JS files -->
     <script src="config.js"></script>
     <script src="auth.js"></script>
     <script src="charts.js"></script>
